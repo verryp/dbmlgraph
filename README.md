@@ -49,7 +49,8 @@ out/
 ├── _index.md              # schema-wide index, one line per table, grouped by domain
 ├── domains/
 │   ├── commerce.md         # tables in this domain + local ER diagram + cross-domain refs
-│   └── identity.md
+│   ├── identity.md
+│   └── ungrouped.md        # tables outside any TableGroup land here
 └── tables/
     ├── orders.md            # full detail: columns, enums, relationships, indexes, rules
     ├── users.md
@@ -144,8 +145,8 @@ explanation.
 
 ## Link styles
 
-`--link-style` controls how cross-references render, for both `generate` and inside the
-`text` field of `export`'s JSONL:
+`--link-style` controls how cross-references render in `generate` output only (`export`
+has no such flag — its JSONL `text` is always `md` style, see RAG export shape below):
 
 - `md` (default) — standard markdown relative links: `[users](../tables/users.md)`. Works
   in any renderer, GitHub included.
