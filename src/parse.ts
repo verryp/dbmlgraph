@@ -46,9 +46,14 @@ export function parseDbml(source: string): IR {
     return before?.name ?? 'ungrouped';
   };
 
-  const tables: TableNode[] = s.tables.map((t: any) => ({
+  const domainNames = new Map<string, string>(); // slug → raw domain name, first occurrence wins
+  const tables: TableNode[] = s.tables.map((t: any) => {
+    const rawDomain = domainNameOf(t);
+    const slug = slugify(rawDomain);
+    if (!domainNames.has(slug)) domainNames.set(slug, rawDomain === 'ungrouped' ? 'Ungrouped' : rawDomain);
+    return {
     name: t.name,
-    domain: slugify(domainNameOf(t)),
+    domain: slug,
     note: t.note ?? null,
     purpose: null,
     rules: [],
@@ -71,17 +76,15 @@ export function parseDbml(source: string): IR {
       unique: !!i.unique,
       note: i.note ?? null,
     })),
-  }));
+    };
+  });
 
-  // domains ordered by first table appearance
+  // domains ordered by first table appearance; names resolved once in the tables pass above
   const domains: Domain[] = [];
   for (const t of tables) {
     let d = domains.find(d => d.slug === t.domain);
     if (!d) {
-      const rawName = groupOf.get(t.name)
-        ?? banners.filter(b => (s.tables.find((x: any) => x.name === t.name)?.token?.start?.line ?? 0) > b.line).at(-1)?.name
-        ?? (t.domain === 'ungrouped' ? 'Ungrouped' : t.domain);
-      d = { slug: t.domain, name: rawName, tables: [] };
+      d = { slug: t.domain, name: domainNames.get(t.domain)!, tables: [] };
       domains.push(d);
     }
     d.tables.push(t.name);

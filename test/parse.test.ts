@@ -44,7 +44,9 @@ describe('parseDbml', () => {
     expect(ir.tables.find(t => t.name === 'users')!.domain).toBe('identity');
     expect(ir.tables.find(t => t.name === 'orders')!.domain).toBe('commerce');
     expect(ir.tables.find(t => t.name === 'audit_log')!.domain).toBe('commerce');
-    expect(ir.domains.map(d => d.slug)).toEqual(['identity', 'commerce']);
+    expect(ir.tables.find(t => t.name === 'settings')!.domain).toBe('ungrouped');
+    expect(ir.domains.map(d => d.slug)).toEqual(['identity', 'ungrouped', 'commerce']);
+    expect(ir.domains.find(d => d.slug === 'ungrouped')).toMatchObject({ name: 'Ungrouped', tables: ['settings'] });
   });
 
   it('extracts composite indexes', () => {

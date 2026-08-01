@@ -14,6 +14,11 @@ Table users {
   referred_by bigint [ref: > users.id]
 }
 
+Table settings {
+  id bigint [pk]
+  key varchar(50)
+}
+
 // ============================================================
 // DOMAIN 2: Commerce
 // ============================================================
