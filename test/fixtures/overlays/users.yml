@@ -1,0 +1,4 @@
+purpose: Account registry.
+columns:
+  referred_by:
+    meaning: Self-ref to the inviting user

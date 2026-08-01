@@ -1,0 +1,12 @@
+purpose: >
+  Order header. One row per checkout.
+rules:
+  - Never delete; cancel via status
+columns:
+  total:
+    formula: "SUM(order_items.qty * order_items.price)"
+  status:
+    enum:
+      pending: awaiting payment confirmation
+      shipped: handed to courier
+      cancelled: user or system cancelled
