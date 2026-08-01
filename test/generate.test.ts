@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,5 +17,13 @@ describe('generate', () => {
     expect(existsSync(join(out, 'domains', 'commerce.md'))).toBe(true);
     expect(res.issues).toEqual([]);
     expect(readFileSync(join(out, '_index.md'), 'utf8')).toContain('audit_log');
+  });
+
+  it('refuses to write outside outDir for a path-traversal table name', () => {
+    const out = mkdtempSync(join(tmpdir(), 'dbmlgraph-'));
+    const maliciousDbml = join(out, 'malicious.dbml');
+    writeFileSync(maliciousDbml, 'Table "../../../../tmp/pwned" {\n  id int [pk]\n}\n');
+    expect(() => generate({ input: maliciousDbml, outDir: out, linkStyle: 'md' })).toThrow(/pwned/);
+    expect(existsSync('/tmp/pwned.md')).toBe(false);
   });
 });

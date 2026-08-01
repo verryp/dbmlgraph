@@ -15,7 +15,7 @@ export function lint(ir: IR, overlayIssues: OverlayIssue[], opts: { excludeColum
     if (!t.purpose) warnings.push({ code: 'W001', table: t.name, detail: 'table has no overlay purpose' });
     for (const c of t.columns) {
       if (exclude.has(c.name)) continue;
-      if (!c.note && !c.meaning) warnings.push({ code: 'W002', table: t.name, detail: `column '${c.name}' has no note or meaning` });
+      if (!c.note && !c.meaning && !c.generated && !c.formula) warnings.push({ code: 'W002', table: t.name, detail: `column '${c.name}' has no note or meaning` });
     }
   }
   for (const e of ir.enums) {

@@ -1,5 +1,5 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { parseDbml } from './parse.js';
 import { loadOverlays, mergeOverlays, type OverlayIssue } from './overlay.js';
 import { renderTable } from './render/table.js';
@@ -11,8 +11,12 @@ export function generate(opts: { input: string; overlaysDir?: string; outDir: st
   const ir = parseDbml(readFileSync(opts.input, 'utf8'));
   const issues = opts.overlaysDir ? mergeOverlays(ir, loadOverlays(opts.overlaysDir)) : [];
   const written: string[] = [];
+  const resolvedOutDir = resolve(opts.outDir);
   const put = (rel: string, content: string) => {
-    const p = join(opts.outDir, rel);
+    const p = resolve(opts.outDir, rel);
+    if (p !== resolvedOutDir && !p.startsWith(resolvedOutDir + sep)) {
+      throw new Error(`refusing to write outside outDir: ${rel}`);
+    }
     mkdirSync(join(p, '..'), { recursive: true });
     writeFileSync(p, content);
     written.push(rel);

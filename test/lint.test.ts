@@ -28,4 +28,11 @@ describe('lint', () => {
     // all order_status values covered by overlay → no W003
     expect(res.warnings.filter(w => w.code === 'W003')).toEqual([]);
   });
+
+  it('W002 does not fire for columns documented only via overlay generated/formula', () => {
+    const ir = parseDbml(src);
+    const res = lint(ir, mergeOverlays(ir, loadOverlays(dir)));
+    // orders.total has no note/meaning but has overlay `formula` → must not get W002
+    expect(res.warnings).not.toContainEqual(expect.objectContaining({ code: 'W002', table: 'orders', detail: expect.stringContaining('total') }));
+  });
 });

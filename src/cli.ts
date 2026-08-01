@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseDbml } from './parse.js';
 import { loadOverlays, mergeOverlays } from './overlay.js';
@@ -13,7 +13,7 @@ program.command('generate')
   .requiredOption('-i, --input <file>', 'DBML file')
   .option('--overlays <dir>', 'overlay YAML directory')
   .requiredOption('-o, --out <dir>', 'output directory')
-  .option('--link-style <style>', 'obsidian | md', 'md')
+  .addOption(new Option('--link-style <style>', 'obsidian | md').choices(['obsidian', 'md']).default('md'))
   .action((o) => {
     const { written, issues } = generate({ input: o.input, overlaysDir: o.overlays, outDir: o.out, linkStyle: o.linkStyle });
     for (const i of issues) console.error(`[${i.code}] ${i.table}: ${i.detail}`);
