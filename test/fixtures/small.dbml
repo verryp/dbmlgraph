@@ -1,0 +1,35 @@
+Enum order_status {
+  pending [note: 'awaiting payment']
+  shipped
+  cancelled
+}
+
+TableGroup identity {
+  users
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(100) [unique, not null, note: 'login id']
+  referred_by bigint [ref: > users.id]
+}
+
+// ============================================================
+// DOMAIN 2: Commerce
+// ============================================================
+
+Table orders {
+  id bigint [pk]
+  user_id bigint [not null, ref: > users.id]
+  status order_status [default: 'pending']
+  total numeric [not null]
+  Note: 'order header'
+  Indexes {
+    (user_id, status) [name: 'idx_user_status']
+  }
+}
+
+Table audit_log {
+  id bigint [pk]
+  payload text
+}
