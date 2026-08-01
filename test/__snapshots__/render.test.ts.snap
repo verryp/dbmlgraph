@@ -7,8 +7,8 @@ domain: commerce
 # Domain: Commerce
 
 ## Tables
-- [audit_log](tables/audit_log.md)
-- [orders](tables/orders.md) — Order header. One row per checkout.
+- [audit_log](../tables/audit_log.md)
+- [orders](../tables/orders.md) — Order header. One row per checkout.
 
 ## ER (local)
 \`\`\`mermaid

@@ -27,7 +27,8 @@ export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
     ].filter(Boolean).join(', ');
     const meaning = [c.note, c.meaning, c.generated && `Generated: ${c.generated}`, c.formula && `Formula: \`${c.formula}\``]
       .filter(Boolean).join(' · ');
-    L.push(`| ${c.name} | ${c.type} | ${cons} | ${meaning.replace(/\|/g, '\\|')} |`);
+    const esc = (s: string) => s.replace(/\|/g, '\\|');
+    L.push(`| ${c.name} | ${esc(c.type)} | ${esc(cons)} | ${esc(meaning)} |`);
   }
   L.push('');
 
