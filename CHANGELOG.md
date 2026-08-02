@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-02
+
+### Fixed
+
+- Corrected the repository, homepage, and issue URLs to the actual GitHub owner
+  (`verryp`). No code or behavior change.
+
 ## [0.1.0] - 2026-08-02
 
 ### Added
@@ -19,5 +26,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `meaning` / `generated` / `formula` / `enum` semantics.
 - Domain resolution from DBML `TableGroup` or `// DOMAIN N:` banner comments.
 
-[Unreleased]: https://github.com/verryantopaulus/dbmlgraph/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/verryantopaulus/dbmlgraph/releases/tag/v0.1.0
+[Unreleased]: https://github.com/verryp/dbmlgraph/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/verryp/dbmlgraph/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/verryp/dbmlgraph/releases/tag/v0.1.0

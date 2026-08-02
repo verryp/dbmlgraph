@@ -421,5 +421,5 @@ Regenerate with `--link-style md` for GitHub.
 
 ---
 
-Still stuck? [Open an issue](https://github.com/verryantopaulus/dbmlgraph/issues)
+Still stuck? [Open an issue](https://github.com/verryp/dbmlgraph/issues)
 with a minimal DBML snippet that reproduces it.

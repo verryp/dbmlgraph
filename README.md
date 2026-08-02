@@ -1,6 +1,6 @@
 # dbmlgraph
 
-[![CI](https://github.com/verryantopaulus/dbmlgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/verryantopaulus/dbmlgraph/actions/workflows/ci.yml)
+[![CI](https://github.com/verryp/dbmlgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/verryp/dbmlgraph/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dbmlgraph)](https://www.npmjs.com/package/dbmlgraph)
 [![node](https://img.shields.io/node/v/dbmlgraph)](https://nodejs.org)
 [![license](https://img.shields.io/npm/l/dbmlgraph)](LICENSE)

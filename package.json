@@ -1,16 +1,16 @@
 {
   "name": "dbmlgraph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DBML → LLM-ready markdown knowledge graph (index, per-table, per-domain) + RAG export",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/verryantopaulus/dbmlgraph.git"
+    "url": "git+https://github.com/verryp/dbmlgraph.git"
   },
-  "homepage": "https://github.com/verryantopaulus/dbmlgraph#readme",
+  "homepage": "https://github.com/verryp/dbmlgraph#readme",
   "bugs": {
-    "url": "https://github.com/verryantopaulus/dbmlgraph/issues"
+    "url": "https://github.com/verryp/dbmlgraph/issues"
   },
   "bin": {
     "dbmlgraph": "dist/cli.js"

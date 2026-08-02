@@ -6,7 +6,7 @@ that keep it small and focused are the most welcome.
 ## Development setup
 
 ```bash
-git clone https://github.com/verryantopaulus/dbmlgraph.git
+git clone https://github.com/verryp/dbmlgraph.git
 cd dbmlgraph
 npm install
 npm test          # vitest, watch-free run
