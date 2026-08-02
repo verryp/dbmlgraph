@@ -1,0 +1,44 @@
+name: Bug report
+description: Something produced wrong output or crashed
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. A minimal DBML snippet that reproduces the problem is worth more than any description.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest DBML (and overlay YAML, if relevant) that triggers it, plus the exact command you ran.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Actual output / error
+      description: The command output or stack trace. Paste it verbatim.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: dbmlgraph version
+      description: "`dbmlgraph --version`, or the git commit if running from source."
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: "`node --version`"
+    validations:
+      required: true

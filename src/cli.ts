@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 import { Command, Option } from 'commander';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { parseDbml } from './parse.js';
 import { loadOverlays, mergeOverlays } from './overlay.js';
 import { lint } from './lint.js';
 import { exportJsonl } from './export.js';
 import { generate } from './generate.js';
 
-const program = new Command().name('dbmlgraph').description('DBML → LLM-ready markdown knowledge graph');
+const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+
+const program = new Command()
+  .name('dbmlgraph')
+  .description('DBML → LLM-ready markdown knowledge graph')
+  .version(pkg.version);
 
 program.command('generate')
   .requiredOption('-i, --input <file>', 'DBML file')
