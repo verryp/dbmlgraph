@@ -31,6 +31,29 @@ Output is plain markdown any agent can `cat`, split into three grains — a sche
 one file per domain, one file per table — so a small-context agent loads only the slice it
 needs, plus a JSONL export for RAG pipelines that want one chunk per table.
 
+## How it compares
+
+The closest tools solve a different problem: they document a database that
+already exists, by connecting to it. dbmlgraph works from DBML you write, and
+its whole point is the business-context layer a live connection can't provide.
+
+| | **dbmlgraph** | [tbls](https://github.com/k1LoW/tbls) | [@dbml/cli](https://github.com/holistics/dbml) |
+|---|---|---|---|
+| Input | DBML file | Live database (DSN) | DBML file |
+| Needs a DB connection | No | Yes | No |
+| Business-context layer (meaning, formulas, enum semantics) | Yes, via overlays | Column comments only | No |
+| Built for LLM / agent consumption | Yes | No (human docs) | No |
+| RAG export (JSONL, one chunk per table) | Yes | No | No |
+| Output split by grain (index / domain / table) | Yes | Per-table pages | No |
+| Lint for documentation gaps | Yes (`W001`–`W003`) | Yes (column comments) | No |
+| ER diagrams | Per-domain (Mermaid) | Yes (many formats) | No |
+| Primary job | Feed schema *meaning* to AI agents | Document a live DB in CI | Convert DBML ↔ SQL |
+
+Use `tbls` when you have a running database and want rich human documentation
+in CI. Use `@dbml/cli` when you want to turn DBML into SQL or vice versa. Use
+dbmlgraph when an AI agent needs to understand what your schema *means*, not
+just its shape.
+
 ## Requirements
 
 - **Node.js 20 or newer.** Check with `node --version`. npm ships with Node, so you need nothing else.
