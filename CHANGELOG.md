@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-03
+
+### Added
+- `init` command: scaffold blank, correctly-keyed overlay YAML stubs from a DBML
+  file — one stub per table with every column and enum value pre-listed
+  (meanings blank). No-clobber: existing overlay files are skipped and reported.
+  `id`/`created_at`/`updated_at` omitted by default (`--exclude-columns` to override).
+
 ## [0.1.1] - 2026-08-02
 
 ### Fixed

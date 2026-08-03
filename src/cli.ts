@@ -7,6 +7,7 @@ import { loadOverlays, mergeOverlays } from './overlay.js';
 import { lint } from './lint.js';
 import { exportJsonl } from './export.js';
 import { generate } from './generate.js';
+import { init } from './init.js';
 
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
 
@@ -52,6 +53,17 @@ program.command('export')
     writeFileSync(o.out, exportJsonl(ir));
     console.log(`wrote ${o.out}`);
     if (issues.length) process.exit(1);
+  });
+
+program.command('init')
+  .description('scaffold blank overlay YAML stubs from a DBML file (no-clobber)')
+  .requiredOption('-i, --input <file>', 'DBML file')
+  .requiredOption('-o, --out <dir>', 'overlay output directory')
+  .option('--exclude-columns <cols>', 'comma-separated columns to skip in stubs')
+  .action((o) => {
+    const { written, skipped } = init({ input: o.input, outDir: o.out, excludeColumns: o.excludeColumns ? o.excludeColumns.split(',') : undefined });
+    for (const s of skipped) console.error(`skip  ${s} (exists)`);
+    console.log(`wrote ${written.length} stubs to ${o.out}${skipped.length ? `, skipped ${skipped.length}` : ''}`);
   });
 
 program.parse();

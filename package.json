@@ -1,6 +1,6 @@
 {
   "name": "dbmlgraph",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "DBML → LLM-ready markdown knowledge graph (index, per-table, per-domain) + RAG export",
   "type": "module",
   "license": "MIT",

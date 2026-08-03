@@ -77,10 +77,18 @@ surprise people. The rest of this README is the reference.
 ## Quick start
 
 ```bash
+dbmlgraph init -i schema.dbml -o overlays/                 # scaffold blank overlay stubs (once, per new schema)
 dbmlgraph generate -i schema.dbml --overlays overlays/ -o out/ --link-style md
 dbmlgraph lint -i schema.dbml --overlays overlays/
 dbmlgraph export -i schema.dbml --overlays overlays/ -o out/export.jsonl
 ```
+
+`init` reads the DBML and emits one blank, correctly-keyed overlay stub per table
+(every column and enum value pre-listed, meanings blank) into the overlays
+directory — so you only fill in meaning, never the mechanical scaffold. It never
+overwrites an existing overlay file; already-authored tables are skipped and
+reported. `id`, `created_at`, `updated_at` are omitted by default (override with
+`--exclude-columns`).
 
 `generate` writes:
 
@@ -211,16 +219,6 @@ Ideas for future versions, roughly ordered by leverage. None are promises —
 they're the directions that fit the tool's shape (DBML in, overlays annotate,
 markdown out). Each notes where it would hook into the codebase. Pick one, open
 an issue, keep the diff small.
-
-### `init` — scaffold overlay stubs
-
-The biggest authoring cost is writing one overlay YAML per table by hand. An
-`init` command would read the DBML and emit an empty, correctly-keyed stub for
-every table (all columns and enum values pre-listed, values blank) into the
-overlays directory, so a human or agent only fills in meaning. Everything it
-needs is already in the parsed IR (`src/parse.ts` → `src/ir.ts`); this is a new
-`src/init.ts` plus a `cli.ts` command that writes files without clobbering
-existing ones.
 
 ### `coverage` — overlay completeness as a metric
 
