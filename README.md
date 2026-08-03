@@ -90,6 +90,33 @@ overwrites an existing overlay file; already-authored tables are skipped and
 reported. `id`, `created_at`, `updated_at` are omitted by default (override with
 `--exclude-columns`).
 
+### Config file
+
+Drop a `.dbmlgraph.yml` in your project root and run the commands with no flags:
+
+```yaml
+# .dbmlgraph.yml
+input: schema.dbml
+overlays: overlays/
+out: graph/
+linkStyle: obsidian        # obsidian | md
+# excludeColumns: [id, created_at, updated_at]
+```
+
+```bash
+dbmlgraph generate     # reads .dbmlgraph.yml — no repeated flags
+dbmlgraph lint
+dbmlgraph export       # writes JSONL to `out`
+dbmlgraph init         # writes stubs to `overlays`
+```
+
+Every key is optional. An explicit flag always overrides the config
+(`generate --link-style md` beats `linkStyle: obsidian`). Point at a different
+file with `-c/--config <path>`; a missing default file is fine (config is
+optional), but a missing explicit `--config` path is an error. For `init`, the
+config's `overlays` is the stub destination (`out` is only used by
+`generate`/`export`).
+
 `generate` writes:
 
 ```
@@ -249,12 +276,6 @@ Per-domain ER diagrams exist (`src/render/domain.ts`); there's no single view of
 how domains connect to each other. A cross-domain edge summary (or Mermaid) in
 `_index.md` would give the whole-schema picture at a glance. Reads `ir.refs` +
 `ir.domains`, extends `src/render/index.ts`.
-
-### Config file
-
-A `dbmlgraph.config.json` (input path, overlays dir, out dir, link style,
-column excludes) would replace repeated CLI flags for a project's standard
-invocation. Loaded in `src/cli.ts`, with explicit flags overriding it.
 
 ## License
 

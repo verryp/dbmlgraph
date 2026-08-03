@@ -8,6 +8,10 @@ import { lint } from './lint.js';
 import { exportJsonl } from './export.js';
 import { generate } from './generate.js';
 import { init } from './init.js';
+import { loadConfig, pick, require_, ConfigFormatError } from './config.js';
+
+// comma-string flag → array, matching config's excludeColumns shape
+const asCols = (v: string | undefined): string[] | undefined => v?.split(',');
 
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
 
@@ -17,25 +21,36 @@ const program = new Command()
   .version(pkg.version);
 
 program.command('generate')
-  .requiredOption('-i, --input <file>', 'DBML file')
+  .option('-i, --input <file>', 'DBML file')
   .option('--overlays <dir>', 'overlay YAML directory')
-  .requiredOption('-o, --out <dir>', 'output directory')
-  .addOption(new Option('--link-style <style>', 'obsidian | md').choices(['obsidian', 'md']).default('md'))
+  .option('-o, --out <dir>', 'output directory')
+  .addOption(new Option('--link-style <style>', 'obsidian | md').choices(['obsidian', 'md']))
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
   .action((o) => {
-    const { written, issues } = generate({ input: o.input, overlaysDir: o.overlays, outDir: o.out, linkStyle: o.linkStyle });
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    const out = require_(pick(o.out, cfg.out), 'out');
+    const overlaysDir = pick(o.overlays, cfg.overlays);
+    const linkStyle = pick(o.linkStyle, cfg.linkStyle, 'md');
+    const { written, issues } = generate({ input, overlaysDir, outDir: out, linkStyle });
     for (const i of issues) console.error(`[${i.code}] ${i.table}: ${i.detail}`);
-    console.log(`wrote ${written.length} files to ${o.out}`);
+    console.log(`wrote ${written.length} files to ${out}`);
     if (issues.length) process.exit(1);
   });
 
 program.command('lint')
-  .requiredOption('-i, --input <file>', 'DBML file')
+  .option('-i, --input <file>', 'DBML file')
   .option('--overlays <dir>', 'overlay YAML directory')
   .option('--exclude-columns <cols>', 'comma-separated columns exempt from W002')
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
   .action((o) => {
-    const ir = parseDbml(readFileSync(o.input, 'utf8'));
-    const issues = o.overlays ? mergeOverlays(ir, loadOverlays(o.overlays)) : [];
-    const res = lint(ir, issues, o.excludeColumns ? { excludeColumns: o.excludeColumns.split(',') } : {});
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    const overlays = pick(o.overlays, cfg.overlays);
+    const excludeColumns = pick(asCols(o.excludeColumns), cfg.excludeColumns);
+    const ir = parseDbml(readFileSync(input, 'utf8'));
+    const issues = overlays ? mergeOverlays(ir, loadOverlays(overlays)) : [];
+    const res = lint(ir, issues, excludeColumns ? { excludeColumns } : {});
     for (const e of res.errors) console.error(`ERROR [${e.code}] ${e.table}: ${e.detail}`);
     for (const w of res.warnings) console.warn(`warn  [${w.code}] ${w.table}: ${w.detail}`);
     console.log(`${res.errors.length} errors, ${res.warnings.length} warnings`);
@@ -43,27 +58,43 @@ program.command('lint')
   });
 
 program.command('export')
-  .requiredOption('-i, --input <file>', 'DBML file')
+  .option('-i, --input <file>', 'DBML file')
   .option('--overlays <dir>', 'overlay YAML directory')
-  .requiredOption('-o, --out <file>', 'output jsonl file')
+  .option('-o, --out <file>', 'output jsonl file')
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
   .action((o) => {
-    const ir = parseDbml(readFileSync(o.input, 'utf8'));
-    const issues = o.overlays ? mergeOverlays(ir, loadOverlays(o.overlays)) : [];
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    const out = require_(pick(o.out, cfg.out), 'out');
+    const overlays = pick(o.overlays, cfg.overlays);
+    const ir = parseDbml(readFileSync(input, 'utf8'));
+    const issues = overlays ? mergeOverlays(ir, loadOverlays(overlays)) : [];
     for (const i of issues) console.error(`[${i.code}] ${i.table}: ${i.detail}`);
-    writeFileSync(o.out, exportJsonl(ir));
-    console.log(`wrote ${o.out}`);
+    writeFileSync(out, exportJsonl(ir));
+    console.log(`wrote ${out}`);
     if (issues.length) process.exit(1);
   });
 
 program.command('init')
   .description('scaffold blank overlay YAML stubs from a DBML file (no-clobber)')
-  .requiredOption('-i, --input <file>', 'DBML file')
-  .requiredOption('-o, --out <dir>', 'overlay output directory')
+  .option('-i, --input <file>', 'DBML file')
+  .option('-o, --out <dir>', 'overlay output directory')
   .option('--exclude-columns <cols>', 'comma-separated columns to skip in stubs')
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
   .action((o) => {
-    const { written, skipped } = init({ input: o.input, outDir: o.out, excludeColumns: o.excludeColumns ? o.excludeColumns.split(',') : undefined });
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    // init writes stubs into the overlays dir → config's `overlays`, not `out`
+    const out = require_(pick(o.out, cfg.overlays), 'out');
+    const excludeColumns = pick(asCols(o.excludeColumns), cfg.excludeColumns);
+    const { written, skipped } = init({ input, outDir: out, excludeColumns });
     for (const s of skipped) console.error(`skip  ${s} (exists)`);
-    console.log(`wrote ${written.length} stubs to ${o.out}${skipped.length ? `, skipped ${skipped.length}` : ''}`);
+    console.log(`wrote ${written.length} stubs to ${out}${skipped.length ? `, skipped ${skipped.length}` : ''}`);
   });
 
-program.parse();
+try {
+  program.parse();
+} catch (e: any) {
+  if (e instanceof ConfigFormatError) { console.error(`error: ${e.message}`); process.exit(1); }
+  throw e;
+}

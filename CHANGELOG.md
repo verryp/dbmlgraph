@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-03
+
+### Added
+- Config file (`.dbmlgraph.yml`): set `input`, `overlays`, `out`, `linkStyle`,
+  `excludeColumns` once and run `generate`/`lint`/`export`/`init` with no flags.
+  Explicit flags override the config; `-c/--config <path>` points at a custom
+  file. A missing default file is fine (config is optional); a missing explicit
+  `--config` path is an error.
+
+### Changed
+- `generate`/`lint`/`export`/`init` no longer require `-i`/`-o` flags when the
+  values are supplied by a config file. Invocations that passed the flags
+  explicitly are unaffected.
+
 ## [0.2.0] - 2026-08-03
 
 ### Added
