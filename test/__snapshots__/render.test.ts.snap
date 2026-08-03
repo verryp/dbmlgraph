@@ -55,10 +55,15 @@ refs_in: []
 | id | bigint | PK, null |  |
 | user_id | bigint | not null |  |
 | status | order_status | null, default pending |  |
-| total | numeric | not null | Formula: \`SUM(order_items.qty * order_items.price)\` |
+| channel | varchar(20) | not null | Sales channel the order came through. |
+| total | numeric | not null | gross amount · Formula: \`SUM(order_items.qty * order_items.price)\` |
 
 ## Enums
 \`order_status\`: pending = awaiting payment confirmation · shipped = handed to courier · cancelled = user or system cancelled
+\`channel\`
+- \`WEB\` — Online storefront
+- \`POS\` — In-store point of sale
+- \`PARTNER\` — Third-party partner integration
 
 ## Relationships
 - → [[users]] via user_id (many-to-one)

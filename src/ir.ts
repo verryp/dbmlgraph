@@ -31,6 +31,14 @@ export interface Column {
   meaning: string | null;     // overlay
   generated: string | null;   // overlay
   formula: string | null;     // overlay
+  valueSet: ValueSet | null;  // overlay: enum-like values for a varchar column (not a DBML enum)
+}
+
+// A varchar column whose allowed values live in a `note: 'A | B | C'` string, documented
+// via the overlay `values:` field. open=true means the list is illustrative, not exhaustive.
+export interface ValueSet {
+  open: boolean;
+  values: { value: string; meaning: string }[];
 }
 
 export interface EnumDef {

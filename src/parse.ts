@@ -68,7 +68,7 @@ export function parseDbml(source: string): IR {
       default: f.dbdefault?.value != null ? String(f.dbdefault.value) : null,
       note: f.note ?? null,
       enumName: enumNames.has(f.type.type_name) ? f.type.type_name : null,
-      meaning: null, generated: null, formula: null,
+      meaning: null, generated: null, formula: null, valueSet: null,
     })),
     indexes: t.indexes.map((i: any): IndexDef => ({
       name: i.name ?? null,

@@ -30,6 +30,27 @@ describe('overlay', () => {
     expect(issues).toContainEqual(expect.objectContaining({ code: 'E002', table: 'users' }));
   });
 
+  it('builds a valueSet from values: on a varchar column, closed by default', () => {
+    const ir = parseDbml(src);
+    mergeOverlays(ir, loadOverlays(dir));
+    const channel = ir.tables.find(t => t.name === 'orders')!.columns.find(c => c.name === 'channel')!;
+    expect(channel.valueSet).not.toBeNull();
+    expect(channel.valueSet!.open).toBe(false);
+    expect(channel.valueSet!.values.map(v => v.value)).toEqual(['WEB', 'POS', 'PARTNER']);
+    expect(channel.valueSet!.values.find(v => v.value === 'POS')!.meaning).toBe('In-store point of sale');
+    // DEC-2: overlay meaning is used, note is not appended
+    expect(channel.meaning).toBe('Sales channel the order came through.');
+  });
+
+  it('open: true marks the valueSet illustrative', () => {
+    const ir = parseDbml(src);
+    const overlays = loadOverlays(dir);
+    overlays.get('orders')!.columns['channel']!.open = true;
+    mergeOverlays(ir, overlays);
+    const channel = ir.tables.find(t => t.name === 'orders')!.columns.find(c => c.name === 'channel')!;
+    expect(channel.valueSet!.open).toBe(true);
+  });
+
   it('E003 on unknown enum value', () => {
     const ir = parseDbml(src);
     const overlays = loadOverlays(dir);

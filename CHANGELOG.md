@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-03
+
+### Added
+- Overlay `values:` field — document the allowed values of a **varchar** column whose
+  value set lives in a `note: 'A | B | C'` string rather than a DBML enum. Maps each value
+  to its business meaning and renders a structured entry under `## Enums`. Pair with
+  `open: true` to mark the set illustrative (`e.g. ...`) rather than exhaustive. Unlike
+  `enum:` (which requires the column's DBML type to be an enum), `values:` works on plain
+  varchar columns — the common case for schemas that encode enums as note strings.
+
+### Changed
+- A column's overlay `meaning` now **replaces** its DBML `note` instead of being appended
+  to it. Columns with no overlay `meaning` still fall back to the note, so DBML-only output
+  is unchanged. This stops the doubled prose that appeared when a column had both a note and
+  an authored meaning.
+
 ## [0.3.0] - 2026-08-03
 
 ### Added

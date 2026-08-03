@@ -12,6 +12,10 @@ const overlaySchema = z.object({
     generated: z.string().optional(),
     formula: z.string().optional(),
     enum: z.record(z.string(), z.string()).optional(),
+    // varchar columns whose allowed values live in a `note: 'A | B | C'` string.
+    // `open: true` marks the list illustrative ('e.g. ...'), not exhaustive.
+    open: z.boolean().optional(),
+    values: z.record(z.string(), z.string()).optional(),
   })).default({}),
 });
 export type Overlay = z.infer<typeof overlaySchema>;
@@ -54,6 +58,12 @@ export function mergeOverlays(ir: IR, overlays: Map<string, Overlay>): OverlayIs
           if (!v) { issues.push({ code: 'E003', table: tableName, detail: `enum '${enumDef.name}' has no value '${val}'` }); continue; }
           v.meaning = meaning;
         }
+      }
+      if (colOv.values) {
+        col.valueSet = {
+          open: colOv.open ?? false,
+          values: Object.entries(colOv.values).map(([value, meaning]) => ({ value, meaning })),
+        };
       }
     }
   }

@@ -27,7 +27,8 @@ Table orders {
   id bigint [pk]
   user_id bigint [not null, ref: > users.id]
   status order_status [default: 'pending']
-  total numeric [not null]
+  channel varchar(20) [not null, note: 'WEB | POS | PARTNER']
+  total numeric [not null, note: 'gross amount']
   Note: 'order header'
   Indexes {
     (user_id, status) [name: 'idx_user_status']

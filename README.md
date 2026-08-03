@@ -153,6 +153,14 @@ columns:
     enum:
       ACTIVE: what this value means
       CLOSED: what this one means
+  channel:                          # varchar column whose values live in a note string
+    values:
+      WEB: Online storefront
+      POS: In-store point of sale
+  data_type:
+    open: true                      # values are illustrative, not exhaustive
+    values:
+      ACTUAL_PRODUCTION_MO: MO-level production actuals
 ```
 
 - `purpose` — one-paragraph description of what the table represents, shown under the
@@ -160,10 +168,16 @@ columns:
 - `rules` — plain-language business rules, rendered as a `## Rules` list at the bottom of
   the table page.
 - `columns.<name>.meaning` / `.generated` / `.formula` — free-form notes on a specific
-  column, rendered in the column's `meaning` cell.
+  column, rendered in the column's `meaning` cell. When `meaning` is set it replaces the
+  DBML `note` for that column (the note is not appended); leave it blank to fall back to
+  the note.
 - `columns.<name>.enum` — maps enum value names to their business meaning. Only valid on a
   column whose DBML type is an enum; `dbmlgraph` resolves the enum by the column's declared
   type and applies the meanings to that enum's values.
+- `columns.<name>.values` — maps allowed values to their meaning for a **varchar** column
+  whose value set lives in a `note: 'A | B | C'` string rather than a DBML enum. Rendered as
+  a structured entry under `## Enums`. Set `columns.<name>.open: true` when the values are
+  illustrative (`e.g. ...`) rather than an exhaustive closed set.
 
 ## Output format
 

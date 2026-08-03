@@ -5,6 +5,12 @@ rules:
 columns:
   total:
     formula: "SUM(order_items.qty * order_items.price)"
+  channel:
+    meaning: Sales channel the order came through.
+    values:
+      WEB: Online storefront
+      POS: In-store point of sale
+      PARTNER: Third-party partner integration
   status:
     enum:
       pending: awaiting payment confirmation

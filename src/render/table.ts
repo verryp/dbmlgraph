@@ -25,7 +25,7 @@ export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
       c.pk && 'PK', c.increment && 'auto', c.unique && 'unique',
       c.notNull ? 'not null' : 'null', c.default != null && `default ${c.default}`,
     ].filter(Boolean).join(', ');
-    const meaning = [c.note, c.meaning, c.generated && `Generated: ${c.generated}`, c.formula && `Formula: \`${c.formula}\``]
+    const meaning = [c.meaning ?? c.note, c.generated && `Generated: ${c.generated}`, c.formula && `Formula: \`${c.formula}\``]
       .filter(Boolean).join(' · ');
     const esc = (s: string) => s.replace(/\|/g, '\\|');
     L.push(`| ${c.name} | ${esc(c.type)} | ${esc(cons)} | ${esc(meaning)} |`);
@@ -34,7 +34,8 @@ export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
 
   const enumsUsed = [...new Set(t.columns.map(c => c.enumName).filter((n): n is string => !!n))]
     .map(n => ir.enums.find(e => e.name === n)!);
-  if (enumsUsed.length) {
+  const valueSetCols = t.columns.filter(c => c.valueSet);
+  if (enumsUsed.length || valueSetCols.length) {
     L.push('## Enums');
     for (const e of enumsUsed) {
       const parts = e.values.map(v => {
@@ -42,6 +43,11 @@ export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
         return m ? `${v.name} = ${m}` : v.name;
       });
       L.push(`\`${e.name}\`: ${parts.join(' · ')}`);
+    }
+    for (const c of valueSetCols) {
+      const vs = c.valueSet!;
+      L.push(`\`${c.name}\`${vs.open ? ' (open — illustrative, not exhaustive)' : ''}`);
+      for (const v of vs.values) L.push(`- \`${v.value}\` — ${v.meaning}`);
     }
     L.push('');
   }
