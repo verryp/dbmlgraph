@@ -1,7 +1,7 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { stringify } from 'yaml';
-import { parseDbml } from './parse.js';
+import { parseDbmlFile } from './parse.js';
 import type { IR, TableNode } from './ir.js';
 
 // Columns whose meaning is boilerplate — omitted from stubs (mirrors lint DEFAULT_EXCLUDES).
@@ -25,7 +25,7 @@ export function stubOverlay(table: TableNode, ir: IR, exclude: Set<string>): Rec
 }
 
 export function init(opts: { input: string; outDir: string; excludeColumns?: string[] }): { written: string[]; skipped: string[] } {
-  const ir = parseDbml(readFileSync(opts.input, 'utf8'));
+  const ir = parseDbmlFile(opts.input);
   const exclude = new Set(opts.excludeColumns ?? DEFAULT_EXCLUDES);
   mkdirSync(opts.outDir, { recursive: true });
 

@@ -1,6 +1,6 @@
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { parseDbml } from './parse.js';
+import { parseDbmlFile } from './parse.js';
 import { loadOverlays, mergeOverlays, type OverlayIssue } from './overlay.js';
 import { renderTable } from './render/table.js';
 import { renderIndex } from './render/index.js';
@@ -9,7 +9,7 @@ import { renderAgents } from './render/agents.js';
 import type { LinkStyle } from './render/link.js';
 
 export function generate(opts: { input: string; overlaysDir?: string; outDir: string; linkStyle: LinkStyle }): { written: string[]; issues: OverlayIssue[] } {
-  const ir = parseDbml(readFileSync(opts.input, 'utf8'));
+  const ir = parseDbmlFile(opts.input);
   const issues = opts.overlaysDir ? mergeOverlays(ir, loadOverlays(opts.overlaysDir)) : [];
   const written: string[] = [];
   const resolvedOutDir = resolve(opts.outDir);

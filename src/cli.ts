@@ -2,7 +2,7 @@
 import { Command, Option } from 'commander';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseDbml } from './parse.js';
+import { parseDbmlFile, DbmlParseError } from './parse.js';
 import { loadOverlays, mergeOverlays } from './overlay.js';
 import { lint } from './lint.js';
 import { exportJsonl } from './export.js';
@@ -49,7 +49,7 @@ program.command('lint')
     const input = require_(pick(o.input, cfg.input), 'input');
     const overlays = pick(o.overlays, cfg.overlays);
     const excludeColumns = pick(asCols(o.excludeColumns), cfg.excludeColumns);
-    const ir = parseDbml(readFileSync(input, 'utf8'));
+    const ir = parseDbmlFile(input);
     const issues = overlays ? mergeOverlays(ir, loadOverlays(overlays)) : [];
     const res = lint(ir, issues, excludeColumns ? { excludeColumns } : {});
     for (const e of res.errors) console.error(`ERROR [${e.code}] ${e.table}: ${e.detail}`);
@@ -68,7 +68,7 @@ program.command('export')
     const input = require_(pick(o.input, cfg.input), 'input');
     const out = require_(pick(o.out, cfg.out), 'out');
     const overlays = pick(o.overlays, cfg.overlays);
-    const ir = parseDbml(readFileSync(input, 'utf8'));
+    const ir = parseDbmlFile(input);
     const issues = overlays ? mergeOverlays(ir, loadOverlays(overlays)) : [];
     for (const i of issues) console.error(`[${i.code}] ${i.table}: ${i.detail}`);
     writeFileSync(out, exportJsonl(ir));
@@ -99,7 +99,7 @@ program.command('query')
   .option('-i, --input <file>', 'DBML file')
   .option('--overlays <dir>', 'overlay YAML directory')
   .option('--depth <n>', `neighbor hops, max ${MAX_DEPTH} (default ${DEFAULT_DEPTH})`)
-  .option('--budget <tokens>', `approx token budget (default ${DEFAULT_BUDGET})`)
+  .option('--budget <tokens>', `approx token budget (default: adaptive, min ${DEFAULT_BUDGET})`)
   .addOption(new Option('--columns <mode>', 'neighbor column detail: key | all').choices(['key', 'all']))
   .addOption(new Option('--format <fmt>', 'md | json').choices(['md', 'json']))
   .option('--strict', 'exact table names only, no fuzzy match')
@@ -108,7 +108,7 @@ program.command('query')
     const cfg = loadConfig(o.config);
     const input = require_(pick(o.input, cfg.input), 'input');
     const overlays = pick(o.overlays, cfg.overlays);
-    const ir = parseDbml(readFileSync(input, 'utf8'));
+    const ir = parseDbmlFile(input);
     if (overlays) mergeOverlays(ir, loadOverlays(overlays));
     console.log(query(ir, {
       tables,
@@ -125,5 +125,11 @@ try {
 } catch (e: any) {
   if (e instanceof ConfigFormatError) { console.error(`error: ${e.message}`); process.exit(1); }
   if (e instanceof QueryResolveError) { console.error(e.message); process.exit(1); }
+  if (e instanceof DbmlParseError) {
+    const loc = [e.file, e.line != null ? `line ${e.line}` : null].filter(Boolean).join(', ');
+    const hint = e.markdownNoFence ? ' — input looks like markdown without a ```dbml fence?' : '';
+    console.error(`dbml parse failed (${loc}): ${e.detail}${hint}`);
+    process.exit(1);
+  }
   throw e;
 }
