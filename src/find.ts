@@ -68,7 +68,7 @@ export function buildFindIndex(ir: IR): IndexEntry[] {
     for (const v of e.values) {
       entries.push({ key: v.name, hit: {
         kind: 'enum_value', match: 'exact', name: v.name, enum: e.name,
-        usedBy: enumUsers.get(e.name) ?? [], meaning: v.meaning ?? undefined,
+        usedBy: enumUsers.get(e.name) ?? [], meaning: v.meaning ?? v.note ?? undefined,
       }});
     }
   }

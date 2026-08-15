@@ -46,6 +46,23 @@ describe('findHits — matching', () => {
     expect(v.usedBy).toEqual(['order_items.item_type']);
   });
 
+  it('DBML enum value falls back to DBML note when no overlay meaning covers it', () => {
+    // fixture: `PHYSICAL [note: 'shipped goods']`, no overlay for item_type_enum values
+    const hits = findHits(ir, 'PHYSICAL', false);
+    const v = hits.find(h => h.kind === 'enum_value')!;
+    expect(v.meaning).toBe('shipped goods');
+  });
+
+  it('DBML enum value prefers overlay meaning over the DBML note when both exist', () => {
+    const withOverlay = fixtureIr();
+    const enumDef = withOverlay.enums.find(e => e.name === 'item_type_enum')!;
+    const val = enumDef.values.find(v => v.name === 'PHYSICAL')!;
+    val.meaning = 'overlay wins';
+    const hits = findHits(withOverlay, 'PHYSICAL', false);
+    const v = hits.find(h => h.kind === 'enum_value')!;
+    expect(v.meaning).toBe('overlay wins');
+  });
+
   it('overlay value-set value matches as enum_value (the KICKOFF case)', () => {
     const hits = findHits(ir, 'ACTIVE', false);
     const v = hits.find(h => h.kind === 'enum_value')!;
@@ -82,6 +99,14 @@ describe('findHits — matching', () => {
     // status ACTIVE only lives on orders.status in this fixture — assert single hit, not duplicates
     const hits = findHits(ir, 'ACTIVE', false).filter(h => h.kind === 'enum_value');
     expect(hits).toHaveLength(1);
+  });
+
+  it('domain exact match resolves usedBy to member tables', () => {
+    // fixture has no TableGroup/banner, so all tables land in the default 'ungrouped' domain
+    const hits = findHits(ir, 'ungrouped', false);
+    const d = hits.find(h => h.kind === 'domain')!;
+    expect(d.name).toBe('ungrouped');
+    expect(d.usedBy?.sort()).toEqual(['cycles', 'order_items', 'orders']);
   });
 });
 
@@ -145,5 +170,11 @@ describe('find — rendering', () => {
     expect(md).toContain('find: PHYSICAL ·');
     const out = JSON.parse(find(ir, { terms: ['orders', 'PHYSICAL'], format: 'json' }));
     expect(new Set(out.map((h: any) => h.term))).toEqual(new Set(['orders', 'PHYSICAL']));
+  });
+
+  it('md: domain hit prints Domain matches header with table count', () => {
+    const md = find(ir, { terms: ['ungrouped'] });
+    expect(md).toContain('## Domain matches');
+    expect(md).toContain('- ungrouped — 3 tables');
   });
 });
