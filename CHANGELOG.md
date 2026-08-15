@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-16
+
+### Added
+- `find <term...>` — identifier search across all node kinds (tables, columns, enums, enum values incl. overlay value-sets, domains). Exact → glob → fuzzy precedence, `--strict`, `--format json`.
+- `install claude [--global]` — generate a Claude Code skill file with the schema directory baked in.
+- `install agents` — marker-delimited AGENTS.md section (covers Codex, opencode, and other AGENTS.md-standard agents). Idempotent re-install.
+- `install --list`, `uninstall claude|agents`.
+
+## [0.5.0] - 2026-08-15
+
+### Added
+- `dbmlgraph query <table...>` — context pack for agents: full nodes for the queried tables, one-line neighbor summaries, deduped merged rules, `--depth`/`--budget`/`--columns`/`--format`/`--strict`.
+- `generate` now always writes `AGENTS.md` at the output root, a navigation landing doc for AI agents dropped into the directory.
+
 ## [0.4.0] - 2026-08-03
 
 ### Added

@@ -47,6 +47,8 @@ its whole point is the business-context layer a live connection can't provide.
 | Output split by grain (index / domain / table) | Yes | Per-table pages | No |
 | Lint for documentation gaps | Yes (`W001`–`W003`) | Yes (column comments) | No |
 | ER diagrams | Per-domain (Mermaid) | Yes (many formats) | No |
+| Identifier search across the whole schema | Yes (`find`) | No | No |
+| One-command agent wiring (Claude Code, AGENTS.md) | Yes (`install`) | No | No |
 | Primary job | Feed schema *meaning* to AI agents | Document a live DB in CI | Convert DBML ↔ SQL |
 
 Use `tbls` when you have a running database and want rich human documentation
@@ -294,6 +296,58 @@ tokens) or the full raw DBML (~27k tokens). The pack matched or beat raw-dump
 accuracy at 3.5–6x less context, and on the hardest rule-dependent task the
 pack arm produced the only fully-correct answer. Method, results, and the two
 design changes the benchmark forced: [docs/benchmark.md](docs/benchmark.md).
+
+## Find an identifier
+
+`find` locates, `query` explains. Reach for `find` first when an agent doesn't yet know
+the exact table/column/enum name it needs — it's a wide, cheap lookup across every node
+kind (tables, columns, enums, enum values including overlay `values:` sets, domains), not
+a deep dump of one table's context.
+
+```bash
+dbmlgraph find cycle_id           # every column named cycle_id, across every table
+dbmlgraph find KICKOFF            # an enum or enum-value hit — DBML enum or overlay values: set
+dbmlgraph find planning_cycle     # a table hit (plus anything else matching the name)
+dbmlgraph find "ratio_*"          # glob — quote it so the shell doesn't expand *
+```
+
+Matching runs in precedence order and stops at the first level that finds something:
+exact name (case-insensitive counts as exact) → glob (a term containing `*`) → fuzzy
+(edit distance ≤ 2), unless `--strict` is set. Multiple terms in one invocation are
+matched independently and their results concatenated.
+
+| flag | default | meaning |
+|---|---|---|
+| `--format md\|json` | `md` | `json` mirrors the same hit groups as keys |
+| `--strict` | off | exact + glob only — skip the fuzzy fallback |
+
+## Install AI-agent integration
+
+`install` wires an agent up to `find`/`query` so it reaches for the schema graph
+instead of grepping markdown or DDL by hand.
+
+```bash
+dbmlgraph install claude [--global]     # writes .claude/skills/dbmlgraph/SKILL.md
+dbmlgraph install agents                # writes/updates a marker-delimited AGENTS.md section
+dbmlgraph install --list                # show install status for all targets
+dbmlgraph uninstall claude|agents [--global]
+```
+
+`install claude` writes a Claude Code skill file — local by default (`./.claude/skills/`),
+or `~/.claude/skills/` with `--global`. `install agents` writes a
+`<!-- dbmlgraph:start -->` … `<!-- dbmlgraph:end -->` section into `AGENTS.md` at the
+project root, covering Codex, opencode, and any other agent that reads the AGENTS.md
+standard. Both installs bake in the resolved schema directory so the agent never has to
+guess `-i`/`--overlays` — one absolute `cd` in the generated instructions.
+
+Schema directory resolution: `--schema-dir <path>` if given, otherwise walk up from the
+current directory looking for a `.dbmlgraph.yml`; no match in either case is an error.
+
+`install agents` is idempotent — re-running it replaces only the content between the
+markers, so re-install after a schema move never duplicates the section or disturbs
+anything else in `AGENTS.md`. `uninstall claude` removes the skill directory;
+`uninstall agents` removes the marked section (and the whole file if nothing else is
+in it).
 
 ## Roadmap
 
