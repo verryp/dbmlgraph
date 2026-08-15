@@ -272,23 +272,29 @@ built for pasting into an agent, so it never has to guess which files to open:
 dbmlgraph query order_items orders -i schema.dbml --overlays overlays/
 ```
 
-Full nodes for the queried tables, then one-line summaries of their neighbors,
-then merged rules — deduped across the whole pack. A queried table never shows up
-as its own neighbor, a neighbor shared by two queried tables prints once, and
-repeated FKs between the same pair collapse with a `(2 refs collapsed)` note.
-The footer names the tables just outside the pack and the command that fetches them.
+Full nodes for the queried tables, then a one-line hook per neighbor plus its
+`keys:` line (PK flag, FK target table(s), enum type — enough to join through
+the neighbor without opening its file), then merged rules — deduped across the
+whole pack. A queried table never shows up as its own neighbor, a neighbor
+shared by two queried tables prints once, and repeated FKs between the same
+pair collapse with a `(2 refs collapsed)` note. The footer names the tables
+just outside the pack and the command that fetches them.
 
 | flag | default | meaning |
 |---|---|---|
 | `--depth <n>` | `1` | neighbor hops, capped at 2. `0` drops the Neighbors section |
-| `--budget <tokens>` | adaptive | by default the cap is sized to fit the queried nodes and every depth-1 neighbor in full (min `4000`), so a hub table is never degraded on a plain invocation; pass a number for a hard cap. Neighbors are ranked (distance, then FK degree, then name) and cut from the tail; queried nodes are never cut |
+| `--budget <tokens>` | adaptive | by default the cap is sized to fit the queried nodes and every depth-1 neighbor's hook line + `keys:` line in full (min `4000`), so a hub table's direct partners are never degraded on a plain invocation; pass a number for a hard cap. Under pressure, neighbors degrade before they drop: depth-2+ entries lose their `keys:` line first (a direct depth-1 FK partner never does under the adaptive default), and only once nothing more can be trimmed does the tail get cut, ranked by distance then FK degree then name — queried nodes are never cut or degraded |
 | `--columns key\|all` | `key` | `all` gives each neighbor a compact PK/FK/enum column table |
-| `--format md\|json` | `md` | `json` mirrors the same sections as keys |
+| `--format md\|json` | `md` | `json` mirrors the same sections as keys, plus `resolvedBudget` (the adaptive value actually used) |
 | `--strict` | off | exact names only. Without it, a close name (case, or edit distance ≤2) is accepted when unambiguous |
 
 Truncation is never silent — a cut list always ends in a counted
-`… and N more (raise --budget or --depth)` label. An unresolvable name exits `1`
-after printing the three closest table names.
+`… and N more (raise --budget or --depth)` label, and a run of key-column
+degradation ends in `(N neighbors shown without columns — raise --budget)`.
+If even that isn't enough room for every direct relationship, the pack ships
+oversize rather than dropping one, with `(budget exceeded to preserve direct
+relationships)` noting why. An unresolvable name exits `1` after printing the
+three closest table names.
 
 Does the pack actually work? We benchmarked it blind against a 70-table
 production schema: fresh agent sessions wrote SQL from either a pack (4–8k

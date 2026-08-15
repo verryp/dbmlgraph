@@ -13,6 +13,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `install claude [--global]` — generate a Claude Code skill file with the schema directory baked in.
 - `install agents` — marker-delimited AGENTS.md section (covers Codex, opencode, and other AGENTS.md-standard agents). Idempotent re-install.
 - `install --list`, `uninstall claude|agents`.
+- `-i/--input` now accepts DBML embedded in a Markdown file — extracts ```` ```dbml ```` fences (or, for `.md`/`.markdown` files, generic fences whose body looks like DBML), so a `.dbml` schema living inside an Obsidian/docs note can be pointed at directly. Parse errors are cleaner: file path, line number, and a hint when a markdown input has no fence to extract.
+- `query` neighbors now carry a `keys:` line (PK flag, FK target table(s), enum type) so a solver can join through a neighbor without opening its file, and the default `--budget` is adaptive — sized to fit every depth-1 neighbor in full — so a hub table's direct partners no longer degrade on a plain invocation. Under pressure, neighbors degrade (lose their `keys:` line) before they're dropped, and depth-1 direct FK partners are never dropped even if the pack ships oversize.
 
 ## [0.5.0] - 2026-08-15
 
