@@ -127,3 +127,72 @@ export function closestIdentifiers(ir: IR, term: string, n: number): string[] {
     .slice(0, n)
     .map(x => x.k);
 }
+
+export interface FindOptions {
+  terms: string[];
+  format?: 'md' | 'json';
+  strict?: boolean;
+}
+
+const MEANING_MAX = 120;
+const clip = (s: string | undefined) =>
+  s && s.length > MEANING_MAX ? s.slice(0, MEANING_MAX - 3) + '…' : (s ?? '');
+
+const KIND_ORDER: { kind: FindKind; title: string }[] = [
+  { kind: 'column', title: 'Column matches' },
+  { kind: 'table', title: 'Table matches' },
+  { kind: 'enum', title: 'Enum matches' },
+  { kind: 'enum_value', title: 'Enum value matches' },
+  { kind: 'domain', title: 'Domain matches' },
+];
+
+function renderTermMd(ir: IR, term: string, hits: FindHit[], strict: boolean): string {
+  const L: string[] = [];
+  if (!hits.length) {
+    L.push(`no matches for "${term}"`);
+    if (!strict) L.push(`closest: ${closestIdentifiers(ir, term, 3).join(', ')}`);
+    return L.join('\n');
+  }
+  const fuzzy = hits.every(h => h.match === 'fuzzy');
+  L.push(`find: ${term} · ${hits.length} hit${hits.length === 1 ? '' : 's'}${fuzzy ? ' (fuzzy)' : ''}`);
+  for (const { kind, title } of KIND_ORDER) {
+    const group = hits.filter(h => h.kind === kind);
+    if (!group.length) continue;   // empty kinds omitted entirely
+    L.push('');
+    L.push(`## ${title}`);
+    if (kind === 'column') {
+      L.push('| table | column | type | constraints | meaning |');
+      L.push('| --- | --- | --- | --- | --- |');
+      for (const h of [...group].sort((a, b) => a.table!.localeCompare(b.table!))) {
+        L.push(`| ${h.table} | ${h.name} | ${h.type} | ${h.constraints} | ${clip(h.meaning)} |`);
+      }
+    } else if (kind === 'table') {
+      for (const h of group) {
+        L.push(`- ${h.name} (domain: ${h.domain}) — run \`dbmlgraph query ${h.name}\` for full context`);
+      }
+    } else if (kind === 'enum') {
+      for (const h of group) L.push(`- enum ${h.name} — used by: ${(h.usedBy ?? []).join(', ') || '(unused)'}`);
+    } else if (kind === 'enum_value') {
+      for (const h of group) {
+        const where = h.enum ? `in ${h.enum}` : 'in value-set';
+        const meaning = h.meaning ? ` — ${clip(h.meaning)}` : '';
+        L.push(`- ${h.name} ${where} — used by: ${(h.usedBy ?? []).join(', ')}${meaning}`);
+      }
+    } else {
+      for (const h of group) L.push(`- ${h.name} — ${(h.usedBy ?? []).length} tables`);
+    }
+  }
+  return L.join('\n');
+}
+
+/** buildIndex + match + render in the caller's format. Pure; the CLI just prints. */
+export function find(ir: IR, opts: FindOptions): string {
+  const strict = opts.strict ?? false;
+  const perTerm = opts.terms.map(term => ({ term, hits: findHits(ir, term, strict) }));
+
+  if (opts.format === 'json') {
+    const flat = perTerm.flatMap(({ term, hits }) => hits.map(h => ({ term, ...h })));
+    return JSON.stringify(flat, null, 2);
+  }
+  return perTerm.map(({ term, hits }) => renderTermMd(ir, term, hits, strict)).join('\n\n---\n\n');
+}

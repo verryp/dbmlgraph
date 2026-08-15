@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseDbml } from '../src/parse.js';
 import { loadOverlays, mergeOverlays } from '../src/overlay.js';
-import { findHits } from '../src/find.js';
+import { findHits, find } from '../src/find.js';
 
 function fixtureIr(withOverlays = true) {
   const ir = parseDbml(readFileSync(new URL('./fixtures/find.dbml', import.meta.url), 'utf8'));
@@ -82,5 +82,68 @@ describe('findHits — matching', () => {
     // status ACTIVE only lives on orders.status in this fixture — assert single hit, not duplicates
     const hits = findHits(ir, 'ACTIVE', false).filter(h => h.kind === 'enum_value');
     expect(hits).toHaveLength(1);
+  });
+});
+
+describe('find — rendering', () => {
+  const ir = fixtureIr();
+
+  it('md: grouped by kind, header count, table pointer line', () => {
+    const md = find(ir, { terms: ['cycle_id'] });
+    expect(md).toContain('find: cycle_id ·');
+    expect(md).toContain('## Column matches');
+    expect(md).toContain('| orders | cycle_id | bigint |');
+    expect(md).toContain('Owning planning cycle');
+    expect(md).not.toContain('## Table matches');   // empty kinds omitted when others matched
+  });
+
+  it('md: table hit renders pointer to query', () => {
+    const md = find(ir, { terms: ['orders'] });
+    expect(md).toContain('run `dbmlgraph query orders` for full context');
+  });
+
+  it('md: enum value hit', () => {
+    const md = find(ir, { terms: ['PHYSICAL'] });
+    expect(md).toContain('PHYSICAL in item_type_enum');
+    expect(md).toContain('used by: order_items.item_type');
+  });
+
+  it('md: no matches prints suggestions', () => {
+    const md = find(ir, { terms: ['zzzzzz'] });
+    expect(md).toContain('no matches for "zzzzzz"');
+    expect(md).toMatch(/closest: /i);
+  });
+
+  it('md: no matches with --strict has no suggestions', () => {
+    const md = find(ir, { terms: ['zzzzzz'], strict: true });
+    expect(md).toContain('no matches for "zzzzzz"');
+    expect(md).not.toMatch(/closest: /i);
+  });
+
+  it('md: meaning truncated at ~120 chars', () => {
+    const longIr = fixtureIr();
+    const col = longIr.tables.find(t => t.name === 'orders')!.columns.find(c => c.name === 'cycle_id')!;
+    col.meaning = 'x'.repeat(200);
+    const md = find(longIr, { terms: ['cycle_id'] });
+    expect(md).toContain('x'.repeat(117) + '…');
+    expect(md).not.toContain('x'.repeat(121));
+  });
+
+  it('json: array of hits with term field, meaning untruncated', () => {
+    const longIr = fixtureIr();
+    longIr.tables.find(t => t.name === 'orders')!.columns.find(c => c.name === 'cycle_id')!.meaning = 'x'.repeat(200);
+    const out = JSON.parse(find(longIr, { terms: ['cycle_id'], format: 'json' }));
+    expect(Array.isArray(out)).toBe(true);
+    expect(out[0].term).toBe('cycle_id');
+    const orders = out.find((h: any) => h.table === 'orders');
+    expect(orders.meaning).toHaveLength(200);
+  });
+
+  it('multi-term: one section per term (md), flat array with term field (json)', () => {
+    const md = find(ir, { terms: ['orders', 'PHYSICAL'] });
+    expect(md).toContain('find: orders ·');
+    expect(md).toContain('find: PHYSICAL ·');
+    const out = JSON.parse(find(ir, { terms: ['orders', 'PHYSICAL'], format: 'json' }));
+    expect(new Set(out.map((h: any) => h.term))).toEqual(new Set(['orders', 'PHYSICAL']));
   });
 });

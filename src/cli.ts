@@ -9,6 +9,7 @@ import { exportJsonl } from './export.js';
 import { generate } from './generate.js';
 import { init } from './init.js';
 import { query, QueryResolveError, MAX_DEPTH, DEFAULT_DEPTH, DEFAULT_BUDGET } from './query.js';
+import { find } from './find.js';
 import { loadConfig, pick, require_, ConfigFormatError } from './config.js';
 
 // comma-string flag → array, matching config's excludeColumns shape
@@ -118,6 +119,23 @@ program.command('query')
       format: o.format,
       strict: !!o.strict,
     }));
+  });
+
+program.command('find')
+  .description('locate identifiers — tables, columns, enums, enum values, domains — across the schema')
+  .argument('<term...>', 'identifier names or globs (e.g. cycle_id, "ratio_*")')
+  .option('-i, --input <file>', 'DBML file')
+  .option('--overlays <dir>', 'overlay YAML directory')
+  .addOption(new Option('--format <fmt>', 'md | json').choices(['md', 'json']))
+  .option('--strict', 'exact + glob only, no fuzzy match')
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
+  .action((terms: string[], o) => {
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    const overlays = pick(o.overlays, cfg.overlays);
+    const ir = parseDbmlFile(input);
+    if (overlays) mergeOverlays(ir, loadOverlays(overlays));
+    console.log(find(ir, { terms, format: o.format, strict: !!o.strict }));
   });
 
 try {
