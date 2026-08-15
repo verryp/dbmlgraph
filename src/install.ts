@@ -84,3 +84,48 @@ export function installClaude(o: { schemaDir: string; cwd: string; global?: bool
   writeFileSync(file, skillTemplate(o.schemaDir));
   return file;
 }
+
+const sectionRe = () => new RegExp(`${MARKER_START}[\\s\\S]*?${MARKER_END}\\n?`, '');
+
+export function installAgents(o: { schemaDir: string; cwd: string }): string {
+  const file = join(o.cwd, 'AGENTS.md');
+  const section = agentsSection(o.schemaDir);
+  if (!existsSync(file)) {
+    writeFileSync(file, `${section}\n`);
+    return file;
+  }
+  const cur = readFileSync(file, 'utf8');
+  const next = sectionRe().test(cur)
+    ? cur.replace(sectionRe(), `${section}\n`)
+    : `${cur.trimEnd()}\n\n${section}\n`;
+  writeFileSync(file, next);
+  return file;
+}
+
+export function uninstall(agent: 'claude' | 'agents', o: { cwd: string; global?: boolean; homeDir?: string }): string | null {
+  if (agent === 'claude') {
+    const base = o.global
+      ? join(o.homeDir ?? homedir(), '.claude', 'skills', 'dbmlgraph')
+      : join(o.cwd, '.claude', 'skills', 'dbmlgraph');
+    if (!existsSync(base)) return null;
+    rmSync(base, { recursive: true, force: true });
+    return base;
+  }
+  const file = join(o.cwd, 'AGENTS.md');
+  if (!existsSync(file)) return null;
+  const cur = readFileSync(file, 'utf8');
+  if (!sectionRe().test(cur)) return null;
+  const next = cur.replace(sectionRe(), '');
+  if (next.trim() === '') rmSync(file);
+  else writeFileSync(file, next);
+  return file;
+}
+
+export function installStatus(o: { cwd: string; homeDir?: string }): { claude: boolean; claudeGlobal: boolean; agents: boolean } {
+  const agentsFile = join(o.cwd, 'AGENTS.md');
+  return {
+    claude: existsSync(join(o.cwd, '.claude', 'skills', 'dbmlgraph', 'SKILL.md')),
+    claudeGlobal: existsSync(join(o.homeDir ?? homedir(), '.claude', 'skills', 'dbmlgraph', 'SKILL.md')),
+    agents: existsSync(agentsFile) && sectionRe().test(readFileSync(agentsFile, 'utf8')),
+  };
+}

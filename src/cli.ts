@@ -11,7 +11,7 @@ import { init } from './init.js';
 import { query, QueryResolveError, MAX_DEPTH, DEFAULT_DEPTH, DEFAULT_BUDGET } from './query.js';
 import { find } from './find.js';
 import { loadConfig, pick, require_, ConfigFormatError } from './config.js';
-import { installClaude, resolveSchemaDir, InstallError } from './install.js';
+import { installClaude, installAgents, uninstall, installStatus, resolveSchemaDir, InstallError } from './install.js';
 
 // comma-string flag → array, matching config's excludeColumns shape
 const asCols = (v: string | undefined): string[] | undefined => v?.split(',');
@@ -144,11 +144,34 @@ program.command('install')
   .argument('[agent]', 'claude | agents')
   .option('--schema-dir <path>', 'directory containing .dbmlgraph.yml (default: walk up from cwd)')
   .option('--global', 'claude only: install to ~/.claude/skills instead of ./.claude/skills')
+  .option('--list', 'show install status for all targets')
   .action((agent: string | undefined, o) => {
-    if (agent !== 'claude') throw new InstallError(`unknown agent "${agent ?? ''}": expected claude | agents`);
+    if (o.list) {
+      const s = installStatus({ cwd: process.cwd() });
+      console.log(`claude ${s.claude ? 'installed' : 'not installed'}${s.claudeGlobal ? ' (global installed)' : ''}`);
+      console.log(`agents ${s.agents ? 'installed' : 'not installed'}`);
+      return;
+    }
+    if (agent !== 'claude' && agent !== 'agents') {
+      throw new InstallError(`unknown agent "${agent ?? ''}": expected claude | agents`);
+    }
     const schemaDir = resolveSchemaDir(o.schemaDir, process.cwd());
-    const file = installClaude({ schemaDir, cwd: process.cwd(), global: !!o.global });
+    const file = agent === 'claude'
+      ? installClaude({ schemaDir, cwd: process.cwd(), global: !!o.global })
+      : installAgents({ schemaDir, cwd: process.cwd() });
     console.log(`wrote ${file}\nschema dir baked: ${schemaDir}`);
+  });
+
+program.command('uninstall')
+  .description('remove AI-agent integration (claude | agents)')
+  .argument('<agent>', 'claude | agents')
+  .option('--global', 'claude only: remove from ~/.claude/skills instead of ./.claude/skills')
+  .action((agent: string, o) => {
+    if (agent !== 'claude' && agent !== 'agents') {
+      throw new InstallError(`unknown agent "${agent}": expected claude | agents`);
+    }
+    const removed = uninstall(agent, { cwd: process.cwd(), global: !!o.global });
+    console.log(removed ? `removed ${removed}` : 'nothing installed');
   });
 
 try {

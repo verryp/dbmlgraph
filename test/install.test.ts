@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { resolveSchemaDir, installClaude, InstallError } from '../src/install.js';
+import { resolveSchemaDir, installClaude, InstallError, installAgents, uninstall, installStatus, MARKER_START, MARKER_END } from '../src/install.js';
 
 let root: string;
 beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'dbmlgraph-install-')); });
@@ -69,5 +69,76 @@ describe('installClaude', () => {
     installClaude({ schemaDir: mkSchemaDir('schema2'), cwd: root });
     expect(readFileSync(join(root, '.claude/skills/dbmlgraph/SKILL.md'), 'utf8')).toContain('schema2');
     expect(readFileSync(other, 'utf8')).toBe('untouched');
+  });
+});
+
+describe('installAgents', () => {
+  it('creates AGENTS.md when marker section absent', () => {
+    const schemaDir = mkSchemaDir('schema');
+    const file = installAgents({ schemaDir, cwd: root });
+    const content = readFileSync(file, 'utf8');
+    expect(content).toContain(MARKER_START);
+    expect(content).toContain(MARKER_END);
+    expect(content).toContain(schemaDir);
+  });
+
+  it('appends section to existing AGENTS.md, preserving user content', () => {
+    const schemaDir = mkSchemaDir('schema');
+    writeFileSync(join(root, 'AGENTS.md'), '# project\n\nUser rules here.\n');
+    installAgents({ schemaDir, cwd: root });
+    const content = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    expect(content).toContain('User rules here.');
+    expect(content).toContain(MARKER_START);
+  });
+
+  it('re-install replaces existing section instead of duplicating', () => {
+    const schemaDir = mkSchemaDir('schema');
+    installAgents({ schemaDir, cwd: root });
+    installAgents({ schemaDir: mkSchemaDir('schema2'), cwd: root });
+    const content = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    expect(content.split(MARKER_START)).toHaveLength(2);
+    expect(content).toContain('schema2');
+  });
+});
+
+describe('uninstall', () => {
+  it('claude: removes project skill dir, returns removed path', () => {
+    const schemaDir = mkSchemaDir('schema');
+    installClaude({ schemaDir, cwd: root });
+    const removed = uninstall('claude', { cwd: root });
+    expect(removed).toContain('.claude/skills/dbmlgraph');
+    expect(existsSync(join(root, '.claude/skills/dbmlgraph'))).toBe(false);
+  });
+
+  it('claude: returns null when nothing installed', () => {
+    expect(uninstall('claude', { cwd: root })).toBeNull();
+  });
+
+  it('agents: strips marker section, preserving user content', () => {
+    const schemaDir = mkSchemaDir('schema');
+    writeFileSync(join(root, 'AGENTS.md'), '# Keep me\n');
+    installAgents({ schemaDir, cwd: root });
+    uninstall('agents', { cwd: root });
+    const content = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    expect(content).toContain('# Keep me');
+    expect(content).not.toContain(MARKER_START);
+  });
+
+  it('agents: deletes AGENTS.md when section was its only content', () => {
+    const schemaDir = mkSchemaDir('schema');
+    installAgents({ schemaDir, cwd: root });
+    uninstall('agents', { cwd: root });
+    expect(existsSync(join(root, 'AGENTS.md'))).toBe(false);
+  });
+});
+
+describe('installStatus', () => {
+  it('reports per-target install state', () => {
+    const home = join(root, 'home');
+    expect(installStatus({ cwd: root, homeDir: home })).toEqual({ claude: false, claudeGlobal: false, agents: false });
+    const schemaDir = mkSchemaDir('schema');
+    installClaude({ schemaDir, cwd: root });
+    installAgents({ schemaDir, cwd: root });
+    expect(installStatus({ cwd: root, homeDir: home })).toEqual({ claude: true, claudeGlobal: false, agents: true });
   });
 });
