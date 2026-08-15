@@ -71,7 +71,7 @@ export interface QueryPack {
 }
 
 /** Levenshtein distance, iterative two-row. Only used for short table names. */
-function editDistance(a: string, b: string): number {
+export function editDistance(a: string, b: string): number {
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     const row = [i];

@@ -1,0 +1,29 @@
+Table orders {
+  id bigint [pk, increment]
+  customer_id bigint [not null]
+  cycle_id bigint [not null]
+  status varchar(20) [not null, note: 'DRAFT | ACTIVE | CLOSED']
+  Note: 'Order header'
+}
+
+Table order_items {
+  id bigint [pk, increment]
+  order_id bigint [not null]
+  cycle_id bigint [not null]
+  item_type item_type_enum [not null]
+}
+
+Table cycles {
+  id bigint [pk, increment]
+  cycle_code varchar(50) [unique, not null]
+}
+
+Enum item_type_enum {
+  PHYSICAL [note: 'shipped goods']
+  DIGITAL
+}
+
+Ref: orders.customer_id > cycles.id
+Ref: orders.cycle_id > cycles.id
+Ref: order_items.order_id > orders.id
+Ref: order_items.cycle_id > cycles.id
