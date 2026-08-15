@@ -11,6 +11,7 @@ import { init } from './init.js';
 import { query, QueryResolveError, MAX_DEPTH, DEFAULT_DEPTH, DEFAULT_BUDGET } from './query.js';
 import { find } from './find.js';
 import { loadConfig, pick, require_, ConfigFormatError } from './config.js';
+import { installClaude, resolveSchemaDir, InstallError } from './install.js';
 
 // comma-string flag → array, matching config's excludeColumns shape
 const asCols = (v: string | undefined): string[] | undefined => v?.split(',');
@@ -138,11 +139,24 @@ program.command('find')
     console.log(find(ir, { terms, format: o.format, strict: !!o.strict }));
   });
 
+program.command('install')
+  .description('install AI-agent integration (claude | agents)')
+  .argument('[agent]', 'claude | agents')
+  .option('--schema-dir <path>', 'directory containing .dbmlgraph.yml (default: walk up from cwd)')
+  .option('--global', 'claude only: install to ~/.claude/skills instead of ./.claude/skills')
+  .action((agent: string | undefined, o) => {
+    if (agent !== 'claude') throw new InstallError(`unknown agent "${agent ?? ''}": expected claude | agents`);
+    const schemaDir = resolveSchemaDir(o.schemaDir, process.cwd());
+    const file = installClaude({ schemaDir, cwd: process.cwd(), global: !!o.global });
+    console.log(`wrote ${file}\nschema dir baked: ${schemaDir}`);
+  });
+
 try {
   program.parse();
 } catch (e: any) {
   if (e instanceof ConfigFormatError) { console.error(`error: ${e.message}`); process.exit(1); }
   if (e instanceof QueryResolveError) { console.error(e.message); process.exit(1); }
+  if (e instanceof InstallError) { console.error(`error: ${e.message}`); process.exit(1); }
   if (e instanceof DbmlParseError) {
     const loc = [e.file, e.line != null ? `line ${e.line}` : null].filter(Boolean).join(', ');
     const hint = e.markdownNoFence ? ' — input looks like markdown without a ```dbml fence?' : '';
