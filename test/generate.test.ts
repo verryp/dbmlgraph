@@ -26,4 +26,24 @@ describe('generate', () => {
     expect(() => generate({ input: maliciousDbml, outDir: out, linkStyle: 'md' })).toThrow(/pwned/);
     expect(existsSync('/tmp/pwned.md')).toBe(false);
   });
+
+  it('writes AGENTS.md into the output dir root with interpolated stats', () => {
+    const out = mkdtempSync(join(tmpdir(), 'dbmlgraph-'));
+    generate({ input: fixture, overlaysDir: overlays, outDir: out, linkStyle: 'md' });
+    const agentsPath = join(out, 'AGENTS.md');
+    expect(existsSync(agentsPath)).toBe(true);
+    const md = readFileSync(agentsPath, 'utf8');
+    expect(md).toContain('4 tables · 3 domains');
+    expect(md).toContain('identity');
+    expect(md).toContain('Commerce');
+  });
+
+  it('overwrites an existing AGENTS.md', () => {
+    const out = mkdtempSync(join(tmpdir(), 'dbmlgraph-'));
+    writeFileSync(join(out, 'AGENTS.md'), 'stale content from a previous run');
+    generate({ input: fixture, overlaysDir: overlays, outDir: out, linkStyle: 'md' });
+    const md = readFileSync(join(out, 'AGENTS.md'), 'utf8');
+    expect(md).not.toContain('stale content from a previous run');
+    expect(md).toContain('# AGENTS.md');
+  });
 });
