@@ -279,7 +279,7 @@ The footer names the tables just outside the pack and the command that fetches t
 | flag | default | meaning |
 |---|---|---|
 | `--depth <n>` | `1` | neighbor hops, capped at 2. `0` drops the Neighbors section |
-| `--budget <tokens>` | `4000` | approximate size cap (chars/4). Neighbors are ranked (distance, then FK degree, then name) and cut from the tail; queried nodes are never cut |
+| `--budget <tokens>` | adaptive | by default the cap is sized to fit the queried nodes and every depth-1 neighbor in full (min `4000`), so a hub table is never degraded on a plain invocation; pass a number for a hard cap. Neighbors are ranked (distance, then FK degree, then name) and cut from the tail; queried nodes are never cut |
 | `--columns key\|all` | `key` | `all` gives each neighbor a compact PK/FK/enum column table |
 | `--format md\|json` | `md` | `json` mirrors the same sections as keys |
 | `--strict` | off | exact names only. Without it, a close name (case, or edit distance ≤2) is accepted when unambiguous |
@@ -287,6 +287,13 @@ The footer names the tables just outside the pack and the command that fetches t
 Truncation is never silent — a cut list always ends in a counted
 `… and N more (raise --budget or --depth)` label. An unresolvable name exits `1`
 after printing the three closest table names.
+
+Does the pack actually work? We benchmarked it blind against a 70-table
+production schema: fresh agent sessions wrote SQL from either a pack (4–8k
+tokens) or the full raw DBML (~27k tokens). The pack matched or beat raw-dump
+accuracy at 3.5–6x less context, and on the hardest rule-dependent task the
+pack arm produced the only fully-correct answer. Method, results, and the two
+design changes the benchmark forced: [docs/benchmark.md](docs/benchmark.md).
 
 ## Roadmap
 
