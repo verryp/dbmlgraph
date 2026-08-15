@@ -121,6 +121,7 @@ config's `overlays` is the stub destination (`out` is only used by
 
 ```
 out/
+├── AGENTS.md               # navigation instructions for AI agents landing in this dir
 ├── _index.md              # schema-wide index, one line per table, grouped by domain
 ├── domains/
 │   ├── commerce.md         # tables in this domain + local ER diagram + cross-domain refs
@@ -132,6 +133,12 @@ out/
     ├── settings.md
     └── audit_log.md
 ```
+
+`generate` always writes `AGENTS.md` at the output root — a landing doc that tells
+an AI agent dropped into this directory how to navigate it (start at `_index.md`,
+drill into `domains/` then `tables/`, prefer `dbmlgraph query` over opening files
+by hand). It's regenerated on every run, so don't hand-edit it; edits are
+overwritten on the next `generate`.
 
 ## Overlay format
 
@@ -254,6 +261,33 @@ has no such flag — its JSONL `text` is always `md` style, see RAG export shape
 style, since embedding pipelines don't read wikilinks) — drop each line straight into a
 vector store as one chunk.
 
+## Context packs for agents
+
+`dbmlgraph query <table...>` prints one self-contained context pack to stdout —
+built for pasting into an agent, so it never has to guess which files to open:
+
+```bash
+dbmlgraph query order_items orders -i schema.dbml --overlays overlays/
+```
+
+Full nodes for the queried tables, then one-line summaries of their neighbors,
+then merged rules — deduped across the whole pack. A queried table never shows up
+as its own neighbor, a neighbor shared by two queried tables prints once, and
+repeated FKs between the same pair collapse with a `(2 refs collapsed)` note.
+The footer names the tables just outside the pack and the command that fetches them.
+
+| flag | default | meaning |
+|---|---|---|
+| `--depth <n>` | `1` | neighbor hops, capped at 2. `0` drops the Neighbors section |
+| `--budget <tokens>` | `4000` | approximate size cap (chars/4). Neighbors are ranked (distance, then FK degree, then name) and cut from the tail; queried nodes are never cut |
+| `--columns key\|all` | `key` | `all` gives each neighbor a compact PK/FK/enum column table |
+| `--format md\|json` | `md` | `json` mirrors the same sections as keys |
+| `--strict` | off | exact names only. Without it, a close name (case, or edit distance ≤2) is accepted when unambiguous |
+
+Truncation is never silent — a cut list always ends in a counted
+`… and N more (raise --budget or --depth)` label. An unresolvable name exits `1`
+after printing the three closest table names.
+
 ## Roadmap
 
 Ideas for future versions, roughly ordered by leverage. None are promises —
@@ -290,6 +324,15 @@ Per-domain ER diagrams exist (`src/render/domain.ts`); there's no single view of
 how domains connect to each other. A cross-domain edge summary (or Mermaid) in
 `_index.md` would give the whole-schema picture at a glance. Reads `ir.refs` +
 `ir.domains`, extends `src/render/index.ts`.
+
+### MCP server (phase 2)
+
+`query` was built pure and side-effect-free on purpose (`buildPack` in
+`src/query.ts` takes an `IR` and options, returns a pack — no I/O, no process
+exit) so it could be reused outside the CLI. An MCP server exposing a single
+tool, `dbmlgraph_query`, would wrap that same function directly — CLI output
+and MCP output would be identical by construction, not two implementations to
+keep in sync.
 
 ## License
 
