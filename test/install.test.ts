@@ -87,6 +87,7 @@ describe('installAgents', () => {
     writeFileSync(join(root, 'AGENTS.md'), '# project\n\nUser rules here.\n');
     installAgents({ schemaDir, cwd: root });
     const content = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    expect(content).toMatch(/^# project/);
     expect(content).toContain('User rules here.');
     expect(content).toContain(MARKER_START);
   });
@@ -98,6 +99,7 @@ describe('installAgents', () => {
     const content = readFileSync(join(root, 'AGENTS.md'), 'utf8');
     expect(content.split(MARKER_START)).toHaveLength(2);
     expect(content).toContain('schema2');
+    expect(content).not.toContain(join(root, 'schema') + '`');
   });
 });
 

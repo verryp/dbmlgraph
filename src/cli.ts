@@ -148,8 +148,8 @@ program.command('install')
   .action((agent: string | undefined, o) => {
     if (o.list) {
       const s = installStatus({ cwd: process.cwd() });
-      console.log(`claude ${s.claude ? 'installed' : 'not installed'}${s.claudeGlobal ? ' (global installed)' : ''}`);
-      console.log(`agents ${s.agents ? 'installed' : 'not installed'}`);
+      console.log(`claude   ${s.claude ? 'installed' : (s.claudeGlobal ? 'installed (global)' : 'not installed')}`);
+      console.log(`agents   ${s.agents ? 'installed' : 'not installed'}`);
       return;
     }
     if (agent !== 'claude' && agent !== 'agents') {
