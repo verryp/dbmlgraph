@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`query > single table, default flags — fixed skeleton order 1`] = `
-"Query: order_items · 1 tables · 3 neighbors · depth 1 · budget 4000
+"Query: order_items · 1 tables · 3 neighbors · depth 1 · budget auto
 ---
 tables: [order_items]
 domains: [commerce]
@@ -27,8 +27,11 @@ domains: [commerce]
 
 ## Neighbors (depth 1)
 - orders → via order_id (many-to-one) — order header
+  keys: id (PK) · customer_id → customers · billing_customer_id → customers · promo_id → promotions
 - products → via product_id (many-to-one) — sellable item
+  keys: id (PK) · category_id → categories
 - promotions → via promo_id (many-to-one) — discount campaign
+  keys: id (PK)
 
 ---
 > Complete nodes for order_items are above — do not open tables/*.md for them.

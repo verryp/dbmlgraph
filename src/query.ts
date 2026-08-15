@@ -3,7 +3,10 @@ import { renderTableBody, columnConstraints } from './render/table.js';
 
 export const MAX_DEPTH = 2;
 export const DEFAULT_DEPTH = 1;
+/** Floor for the adaptive budget, and the exact budget a small pack still gets. */
 export const DEFAULT_BUDGET = 4000;
+/** Room left above the depth-1 floor for depth-2 entries, rules and the footer. */
+export const ADAPTIVE_HEADROOM = 2000;
 
 export interface QueryOptions {
   tables: string[];
@@ -25,20 +28,43 @@ export interface NeighborEdge {
   kind: Ref['kind'];
 }
 
+/** One key column of a neighbor: its PK flag, FK target(s) and enum type. A
+ *  column can carry several roles at once (a PK that is also an FK). */
+export interface NeighborKey {
+  name: string;
+  pk: boolean;
+  fkTargets: string[];
+  enum: string | null;
+}
+
 export interface NeighborPack {
   name: string;
   domain: string;
   hook: string;
   depth: number;
   edges: NeighborEdge[];
+  keys: NeighborKey[];
+  /** Depth-1 neighbor — a direct FK partner of a queried table. Never dropped. */
+  directFk: boolean;
+  /** Rendered as a bare one-line summary because the budget could not fit its keys. */
+  degraded: boolean;
   columns?: { name: string; type: string; constraints: string; role: string }[];
 }
 
 export interface QueryPack {
-  manifest: { query: string[]; tableCount: number; neighborCount: number; depth: number; budget: number };
+  manifest: {
+    query: string[]; tableCount: number; neighborCount: number; depth: number;
+    /** Always the resolved number — the adaptive value when `budgetAuto`. */
+    budget: number;
+    /** No `--budget` was passed: the budget was sized to fit depth 1 in full. */
+    budgetAuto: boolean;
+  };
   tables: { name: string; domain: string; body: string }[];
   neighbors: NeighborPack[];
   neighborsTruncated: number;
+  neighborsDegraded: number;
+  /** The pack is over budget on purpose — the remainder is all direct FK partners. */
+  budgetExceeded: boolean;
   rules: { table: string; rule: string }[];
   notExpanded: string[];
   domains: string[];
@@ -106,6 +132,34 @@ function keyColumns(ir: IR, t: TableNode) {
     }));
 }
 
+/**
+ * The join-relevant columns of a neighbor: its PK, every FK column with the
+ * table it points at, and every enum-typed column with its type name. This is
+ * what a solver needs to route a join THROUGH the neighbor without guessing
+ * column names. Value-set columns (varchar with an overlay `values:` list) are
+ * left out — they carry no type name, so they add width without adding a join key.
+ */
+function neighborKeys(ir: IR, t: TableNode): NeighborKey[] {
+  const fkTargets = new Map<string, string[]>();
+  for (const r of ir.refs.filter(r => r.fromTable === t.name)) {
+    for (const c of r.fromColumns) {
+      const hit = fkTargets.get(c) ?? [];
+      if (!hit.includes(r.toTable)) hit.push(r.toTable);
+      fkTargets.set(c, hit);
+    }
+  }
+  return t.columns
+    .filter(c => c.pk || fkTargets.has(c.name) || c.enumName)
+    .map(c => ({ name: c.name, pk: c.pk, fkTargets: fkTargets.get(c.name) ?? [], enum: c.enumName }));
+}
+
+/** `id (PK) · cycle_id → planning_cycle · participant_type: participant_type_enum` */
+function renderKeyLine(keys: NeighborKey[]): string {
+  return keys
+    .map(k => `${k.name}${k.pk ? ' (PK)' : ''}${k.fkTargets.length ? ` → ${k.fkTargets.join('/')}` : ''}${k.enum ? `: ${k.enum}` : ''}`)
+    .join(' · ');
+}
+
 const approxTokens = (s: string): number => Math.ceil(s.length / 4);
 
 /**
@@ -114,7 +168,6 @@ const approxTokens = (s: string): number => Math.ceil(s.length / 4);
  */
 export function buildPack(ir: IR, opts: QueryOptions): QueryPack {
   const depth = Math.min(Math.max(opts.depth ?? DEFAULT_DEPTH, 0), MAX_DEPTH);
-  const budget = opts.budget ?? DEFAULT_BUDGET;
   const columns = opts.columns ?? 'key';
   const strict = opts.strict ?? false;
 
@@ -141,7 +194,14 @@ export function buildPack(ir: IR, opts: QueryOptions): QueryPack {
         let n = neighbors.get(end.table);
         if (!n) {
           const t = ir.tables.find(t => t.name === end.table)!;
-          n = { name: t.name, domain: t.domain, hook: hookOf(t), depth: hop, edges: [] };
+          n = {
+            name: t.name, domain: t.domain, hook: hookOf(t), depth: hop, edges: [],
+            keys: neighborKeys(ir, t),
+            // Reached on the first hop, so this ref connects it straight to a
+            // queried table. Hiding it would hide a join path the solver needs.
+            directFk: hop === 1,
+            degraded: false,
+          };
           if (columns === 'all') n.columns = keyColumns(ir, t);
           neighbors.set(end.table, n);
         }
@@ -180,17 +240,62 @@ export function buildPack(ir: IR, opts: QueryOptions): QueryPack {
 
   const domains = [...new Set(queried.map(n => ir.tables.find(t => t.name === n)!.domain))];
 
-  // Rank-then-cut: queried nodes are never cut, so only the neighbor tail moves.
-  // Measure with the real renderer so the cut reflects what actually prints.
+  // Queried nodes are never cut, so only the neighbor tail moves. Measure with
+  // the real renderer so every trim reflects what actually prints.
+  const budgetAuto = opts.budget == null;
   const pack: QueryPack = {
-    manifest: { query: queried, tableCount: queried.length, neighborCount: ranked.length, depth, budget },
-    tables, neighbors: ranked, neighborsTruncated: 0, rules,
+    manifest: {
+      query: queried, tableCount: queried.length, neighborCount: ranked.length, depth,
+      budget: opts.budget ?? DEFAULT_BUDGET, budgetAuto,
+    },
+    tables, neighbors: ranked, neighborsTruncated: 0, neighborsDegraded: 0, budgetExceeded: false, rules,
     notExpanded: [...notExpanded].sort(), domains,
   };
-  while (pack.neighbors.length && approxTokens(renderPack(pack, columns)) > budget) {
-    pack.neighbors = pack.neighbors.slice(0, -1);
-    pack.neighborsTruncated++;
+
+  // Adaptive default. A flat cap punishes exactly the tables worth querying: a hub
+  // with 30 inbound refs blows past it and every neighbor drops to a bare one-liner
+  // on a plain invocation. So with no explicit `--budget`, size the ceiling to what
+  // the pack actually needs at depth 1 — queried nodes plus every direct FK partner
+  // in full form — plus headroom for depth-2 entries, rules and the footer. Measured
+  // once with the real renderer on a depth-1-only probe, so it tracks the real output
+  // rather than an estimate. Depth-2+ still gets ranked and cut under that ceiling.
+  if (budgetAuto) {
+    const probe: QueryPack = { ...pack, neighbors: ranked.filter(n => n.depth === 1) };
+    pack.manifest.budget = Math.max(DEFAULT_BUDGET, approxTokens(renderPack(probe, columns)) + ADAPTIVE_HEADROOM);
   }
+  const budget = pack.manifest.budget;
+  const overBudget = () => approxTokens(renderPack(pack, columns)) > budget;
+
+  // Phase 1 — degrade before dropping. Losing a neighbor's key columns costs the
+  // solver precision; losing the neighbor costs it the join path entirely. Work
+  // up from the lowest-ranked entry. Only the `key` view renders a key line, so
+  // for `--columns all` this phase has nothing to give back.
+  if (columns === 'key') {
+    for (let i = pack.neighbors.length - 1; i >= 0 && overBudget(); i--) {
+      const n = pack.neighbors[i];
+      if (!n.keys.length) continue;
+      // Under the adaptive ceiling depth 1 is guaranteed room, so only depth-2+
+      // entries pay. An explicit budget keeps the old ladder: everything degrades.
+      if (budgetAuto && n.directFk) continue;
+      n.degraded = true;
+      pack.neighborsDegraded++;
+    }
+  }
+
+  // Phase 2 — drop whole entries from the tail, but never a depth-1 direct FK
+  // partner: a pack that hides one produces confidently-wrong SQL.
+  while (overBudget()) {
+    const cut = [...pack.neighbors].reverse().find(n => !n.directFk);
+    if (!cut) break;
+    pack.neighbors = pack.neighbors.filter(n => n !== cut);
+    pack.neighborsTruncated++;
+    if (cut.degraded) pack.neighborsDegraded--;  // it is gone, not merely degraded
+  }
+
+  // Phase 3 — nothing droppable left and still over. Ship it oversize and say so;
+  // an over-budget pack is the lesser failure against a missing direct relationship.
+  pack.budgetExceeded = overBudget();
+
   pack.manifest.neighborCount = pack.neighbors.length;
   return pack;
 }
@@ -218,7 +323,11 @@ export function renderPack(pack: QueryPack, columns: 'key' | 'all' = 'key'): str
   const { manifest } = pack;
   const L: string[] = [];
 
-  L.push(`Query: ${manifest.query.join(', ')} · ${manifest.tableCount} tables · ${manifest.neighborCount} neighbors · depth ${manifest.depth} · budget ${manifest.budget}`);
+  // An adaptive budget prints as `auto` rather than its resolved number: the number
+  // is an artifact of this pack's size, so showing it would read like a cap the user
+  // chose. The resolved value stays available in json as `resolvedBudget`.
+  const budgetLabel = manifest.budgetAuto ? 'auto' : String(manifest.budget);
+  L.push(`Query: ${manifest.query.join(', ')} · ${manifest.tableCount} tables · ${manifest.neighborCount} neighbors · depth ${manifest.depth} · budget ${budgetLabel}`);
   L.push('---');
   L.push(`tables: [${manifest.query.join(', ')}]`);
   L.push(`domains: [${pack.domains.join(', ')}]`);
@@ -234,6 +343,10 @@ export function renderPack(pack: QueryPack, columns: 'key' | 'all' = 'key'): str
     L.push(`## Neighbors (depth ${manifest.depth})`);
     for (const n of pack.neighbors) {
       L.push(`- ${n.name} ${collapseEdges(n.edges, manifest.tableCount > 1)}${n.hook ? ` — ${n.hook}` : ''}`);
+      // Default `key` view: one extra line naming the neighbor's own join keys,
+      // so a solver routing THROUGH it never has to guess column names. Dropped
+      // only when the budget forced this entry down to its bare summary.
+      if (columns === 'key' && !n.degraded && n.keys.length) L.push(`  keys: ${renderKeyLine(n.keys)}`);
       if (columns === 'all' && n.columns?.length) {
         L.push('');
         L.push('  | column | type | constraints | role |');
@@ -243,6 +356,8 @@ export function renderPack(pack: QueryPack, columns: 'key' | 'all' = 'key'): str
       }
     }
     if (pack.neighborsTruncated) L.push(`… and ${pack.neighborsTruncated} more (raise --budget or --depth)`);
+    if (pack.neighborsDegraded) L.push(`(${pack.neighborsDegraded} neighbors shown without key columns — raise --budget)`);
+    if (pack.budgetExceeded) L.push('(budget exceeded to preserve direct relationships)');
     L.push('');
   }
 
@@ -265,7 +380,16 @@ export function renderPack(pack: QueryPack, columns: 'key' | 'all' = 'key'): str
 /** JSON mirror of the md sections — same keys, same content, no extra model. */
 export function packToJson(pack: QueryPack) {
   return {
-    manifest: pack.manifest,
+    manifest: {
+      ...pack.manifest,
+      // `budget` mirrors the md manifest line ("auto" when adaptive); the number the
+      // ladder actually ran against is always readable as `resolvedBudget`.
+      budget: pack.manifest.budgetAuto ? 'auto' : pack.manifest.budget,
+      resolvedBudget: pack.manifest.budget,
+      neighborsTruncated: pack.neighborsTruncated,
+      neighborsDegraded: pack.neighborsDegraded,
+      budgetExceeded: pack.budgetExceeded,
+    },
     tables: pack.tables,
     neighbors: pack.neighbors.map(n => ({ ...n, edges: collapseEdges(n.edges, pack.manifest.tableCount > 1) })),
     rules: pack.rules,
