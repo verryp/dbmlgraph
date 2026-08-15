@@ -1,17 +1,36 @@
-import type { IR, TableNode } from '../ir.js';
+import type { IR, TableNode, Column } from '../ir.js';
 import { link, type LinkStyle } from './link.js';
 
-export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
+/** Constraint cell for a column row — shared with the `query` neighbor tables. */
+export function columnConstraints(c: Column): string {
+  return [
+    c.pk && 'PK', c.increment && 'auto', c.unique && 'unique',
+    c.notNull ? 'not null' : 'null', c.default != null && `default ${c.default}`,
+  ].filter(Boolean).join(', ');
+}
+
+/** Per-table YAML frontmatter — split out so callers that compose their own
+ *  header (e.g. `query`, which merges one block for the whole pack) can skip it. */
+export function tableFrontmatter(t: TableNode, ir: IR): string {
+  const refsOut = ir.refs.filter(r => r.fromTable === t.name);
+  const refsIn = ir.refs.filter(r => r.toTable === t.name && r.fromTable !== t.name);
+  return [
+    '---',
+    `table: ${t.name}`,
+    `domain: ${t.domain}`,
+    `refs_out: [${[...new Set(refsOut.map(r => r.toTable))].sort().join(', ')}]`,
+    `refs_in: [${[...new Set(refsIn.map(r => r.fromTable))].sort().join(', ')}]`,
+    '---',
+  ].join('\n');
+}
+
+/** Node body without frontmatter. `rules: false` drops the Rules section for
+ *  callers that merge rules across several tables. */
+export function renderTableBody(t: TableNode, ir: IR, style: LinkStyle, opts: { rules?: boolean } = {}): string {
   const refsOut = ir.refs.filter(r => r.fromTable === t.name);
   const refsIn = ir.refs.filter(r => r.toTable === t.name && r.fromTable !== t.name);
   const L: string[] = [];
 
-  L.push('---');
-  L.push(`table: ${t.name}`);
-  L.push(`domain: ${t.domain}`);
-  L.push(`refs_out: [${[...new Set(refsOut.map(r => r.toTable))].sort().join(', ')}]`);
-  L.push(`refs_in: [${[...new Set(refsIn.map(r => r.fromTable))].sort().join(', ')}]`);
-  L.push('---');
   L.push(`# ${t.name}`);
   const blurb = t.purpose ?? t.note;
   if (blurb) L.push(`> ${blurb.replace(/\n+/g, ' ').trim()}`);
@@ -21,10 +40,7 @@ export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
   L.push('| column | type | constraints | meaning |');
   L.push('|---|---|---|---|');
   for (const c of t.columns) {
-    const cons = [
-      c.pk && 'PK', c.increment && 'auto', c.unique && 'unique',
-      c.notNull ? 'not null' : 'null', c.default != null && `default ${c.default}`,
-    ].filter(Boolean).join(', ');
+    const cons = columnConstraints(c);
     const meaning = [c.meaning ?? c.note, c.generated && `Generated: ${c.generated}`, c.formula && `Formula: \`${c.formula}\``]
       .filter(Boolean).join(' · ');
     const esc = (s: string) => s.replace(/\|/g, '\\|');
@@ -68,11 +84,15 @@ export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
     L.push('');
   }
 
-  if (t.rules.length) {
+  if (t.rules.length && opts.rules !== false) {
     L.push('## Rules');
     for (const r of t.rules) L.push(`- ${r}`);
     L.push('');
   }
 
   return L.join('\n');
+}
+
+export function renderTable(t: TableNode, ir: IR, style: LinkStyle): string {
+  return `${tableFrontmatter(t, ir)}\n${renderTableBody(t, ir, style)}`;
 }

@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`query > single table, default flags — fixed skeleton order 1`] = `
+"Query: order_items · 1 tables · 3 neighbors · depth 1 · budget 4000
+---
+tables: [order_items]
+domains: [commerce]
+---
+
+# order_items
+> one line per product on an order
+
+## Columns
+| column | type | constraints | meaning |
+|---|---|---|---|
+| id | bigint | PK, null |  |
+| order_id | bigint | not null |  |
+| product_id | bigint | not null |  |
+| promo_id | bigint | null |  |
+| qty | int | not null |  |
+
+## Relationships
+- → [orders](orders.md) via order_id (many-to-one)
+- → [products](products.md) via product_id (many-to-one)
+- → [promotions](promotions.md) via promo_id (many-to-one)
+
+
+## Neighbors (depth 1)
+- orders → via order_id (many-to-one) — order header
+- products → via product_id (many-to-one) — sellable item
+- promotions → via promo_id (many-to-one) — discount campaign
+
+---
+> Complete nodes for order_items are above — do not open tables/*.md for them.
+> Not expanded: categories, customers, payments, shipments. Get their nodes: dbmlgraph query categories customers payments shipments"
+`;

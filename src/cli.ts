@@ -8,6 +8,7 @@ import { lint } from './lint.js';
 import { exportJsonl } from './export.js';
 import { generate } from './generate.js';
 import { init } from './init.js';
+import { query, QueryResolveError, MAX_DEPTH, DEFAULT_DEPTH, DEFAULT_BUDGET } from './query.js';
 import { loadConfig, pick, require_, ConfigFormatError } from './config.js';
 
 // comma-string flag → array, matching config's excludeColumns shape
@@ -92,9 +93,37 @@ program.command('init')
     console.log(`wrote ${written.length} stubs to ${out}${skipped.length ? `, skipped ${skipped.length}` : ''}`);
   });
 
+program.command('query')
+  .description('print an LLM context pack for one or more tables')
+  .argument('<table...>', 'table names to expand')
+  .option('-i, --input <file>', 'DBML file')
+  .option('--overlays <dir>', 'overlay YAML directory')
+  .option('--depth <n>', `neighbor hops, max ${MAX_DEPTH} (default ${DEFAULT_DEPTH})`)
+  .option('--budget <tokens>', `approx token budget (default ${DEFAULT_BUDGET})`)
+  .addOption(new Option('--columns <mode>', 'neighbor column detail: key | all').choices(['key', 'all']))
+  .addOption(new Option('--format <fmt>', 'md | json').choices(['md', 'json']))
+  .option('--strict', 'exact table names only, no fuzzy match')
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
+  .action((tables: string[], o) => {
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    const overlays = pick(o.overlays, cfg.overlays);
+    const ir = parseDbml(readFileSync(input, 'utf8'));
+    if (overlays) mergeOverlays(ir, loadOverlays(overlays));
+    console.log(query(ir, {
+      tables,
+      depth: o.depth != null ? Number(o.depth) : undefined,
+      budget: o.budget != null ? Number(o.budget) : undefined,
+      columns: o.columns,
+      format: o.format,
+      strict: !!o.strict,
+    }));
+  });
+
 try {
   program.parse();
 } catch (e: any) {
   if (e instanceof ConfigFormatError) { console.error(`error: ${e.message}`); process.exit(1); }
+  if (e instanceof QueryResolveError) { console.error(e.message); process.exit(1); }
   throw e;
 }

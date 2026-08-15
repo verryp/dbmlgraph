@@ -1,0 +1,80 @@
+// Fixture for `query`: wide enough for depth-2 hops, shared neighbors,
+// and repeated refs between the same table pair.
+
+Enum shipment_status {
+  pending [note: 'not yet picked']
+  in_transit
+  delivered
+}
+
+TableGroup identity {
+  users
+  addresses
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(100) [unique, not null, note: 'login id']
+}
+
+Table addresses {
+  id bigint [pk]
+  user_id bigint [not null, ref: > users.id]
+  line1 varchar(120)
+}
+
+// ============================================================
+// DOMAIN 2: Commerce
+// ============================================================
+
+Table customers {
+  id bigint [pk]
+  user_id bigint [ref: > users.id]
+  Note: 'buyer profile'
+}
+
+Table promotions {
+  id bigint [pk]
+  code varchar(20) [unique]
+  Note: 'discount campaign'
+}
+
+Table categories {
+  id bigint [pk]
+  name varchar(60)
+}
+
+Table products {
+  id bigint [pk]
+  category_id bigint [ref: > categories.id]
+  name varchar(120) [not null]
+  Note: 'sellable item'
+}
+
+Table orders {
+  id bigint [pk]
+  customer_id bigint [not null, ref: > customers.id]
+  billing_customer_id bigint [ref: > customers.id]
+  promo_id bigint [ref: > promotions.id]
+  Note: 'order header'
+}
+
+Table order_items {
+  id bigint [pk]
+  order_id bigint [not null, ref: > orders.id]
+  product_id bigint [not null, ref: > products.id]
+  promo_id bigint [ref: > promotions.id]
+  qty int [not null]
+  Note: 'one line per product on an order'
+}
+
+Table shipments {
+  id bigint [pk]
+  order_id bigint [ref: > orders.id]
+  status shipment_status
+}
+
+Table payments {
+  id bigint [pk]
+  order_id bigint [ref: > orders.id]
+}
