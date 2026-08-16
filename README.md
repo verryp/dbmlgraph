@@ -9,6 +9,10 @@ DBML → LLM-ready markdown knowledge graph. Reads a `.dbml` schema, merges an o
 business-context overlay, and writes a set of plain markdown files (plus a JSONL export)
 sized for AI coding agents to consume without any special tooling.
 
+![dbmlgraph demo — generate, find, query, and install into an AI agent](https://raw.githubusercontent.com/verryp/dbmlgraph/main/demo/demo.gif)
+
+<sub>Recorded with [vhs](https://github.com/charmbracelet/vhs) from [`demo/demo.tape`](demo/demo.tape) against the sample schema in [`demo/`](demo). Regenerate with `npm run build && cd demo && vhs demo.tape`.</sub>
+
 ## What / Why
 
 AI agents working against a database don't need raw DDL — they need schema *semantics*:

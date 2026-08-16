@@ -1,0 +1,11 @@
+purpose: >
+  Order header. One row per checkout.
+rules:
+  - Never delete; cancel via shipment status
+columns:
+  customer_id:
+    meaning: Buyer who placed the order
+  billing_customer_id:
+    meaning: Payer when different from the buyer (gift orders, corporate billing)
+  promo_id:
+    meaning: Campaign applied at checkout; NULL = no discount
