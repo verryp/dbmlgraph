@@ -1,0 +1,4 @@
+purpose: Account registry — one row per login identity.
+columns:
+  email:
+    meaning: Login id, unique across the platform
