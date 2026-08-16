@@ -9,7 +9,9 @@ import { exportJsonl } from './export.js';
 import { generate } from './generate.js';
 import { init } from './init.js';
 import { query, QueryResolveError, MAX_DEPTH, DEFAULT_DEPTH, DEFAULT_BUDGET } from './query.js';
+import { find } from './find.js';
 import { loadConfig, pick, require_, ConfigFormatError } from './config.js';
+import { installClaude, installAgents, uninstall, installStatus, resolveSchemaDir, InstallError } from './install.js';
 
 // comma-string flag → array, matching config's excludeColumns shape
 const asCols = (v: string | undefined): string[] | undefined => v?.split(',');
@@ -120,11 +122,64 @@ program.command('query')
     }));
   });
 
+program.command('find')
+  .description('locate identifiers — tables, columns, enums, enum values, domains — across the schema')
+  .argument('<term...>', 'identifier names or globs (e.g. cycle_id, "ratio_*")')
+  .option('-i, --input <file>', 'DBML file')
+  .option('--overlays <dir>', 'overlay YAML directory')
+  .addOption(new Option('--format <fmt>', 'md | json').choices(['md', 'json']))
+  .option('--strict', 'exact + glob only, no fuzzy match')
+  .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
+  .action((terms: string[], o) => {
+    const cfg = loadConfig(o.config);
+    const input = require_(pick(o.input, cfg.input), 'input');
+    const overlays = pick(o.overlays, cfg.overlays);
+    const ir = parseDbmlFile(input);
+    if (overlays) mergeOverlays(ir, loadOverlays(overlays));
+    console.log(find(ir, { terms, format: o.format, strict: !!o.strict }));
+  });
+
+program.command('install')
+  .description('install AI-agent integration (claude | agents)')
+  .argument('[agent]', 'claude | agents')
+  .option('--schema-dir <path>', 'directory containing .dbmlgraph.yml (default: walk up from cwd)')
+  .option('--global', 'claude only: install to ~/.claude/skills instead of ./.claude/skills')
+  .option('--list', 'show install status for all targets')
+  .action((agent: string | undefined, o) => {
+    if (o.list) {
+      const s = installStatus({ cwd: process.cwd() });
+      console.log(`claude   ${s.claude ? 'installed' : (s.claudeGlobal ? 'installed (global)' : 'not installed')}`);
+      console.log(`agents   ${s.agents ? 'installed' : 'not installed'}`);
+      return;
+    }
+    if (agent !== 'claude' && agent !== 'agents') {
+      throw new InstallError(`unknown agent "${agent ?? ''}": expected claude | agents`);
+    }
+    const schemaDir = resolveSchemaDir(o.schemaDir, process.cwd());
+    const file = agent === 'claude'
+      ? installClaude({ schemaDir, cwd: process.cwd(), global: !!o.global })
+      : installAgents({ schemaDir, cwd: process.cwd() });
+    console.log(`wrote ${file}\nschema dir baked: ${schemaDir}`);
+  });
+
+program.command('uninstall')
+  .description('remove AI-agent integration (claude | agents)')
+  .argument('<agent>', 'claude | agents')
+  .option('--global', 'claude only: remove from ~/.claude/skills instead of ./.claude/skills')
+  .action((agent: string, o) => {
+    if (agent !== 'claude' && agent !== 'agents') {
+      throw new InstallError(`unknown agent "${agent}": expected claude | agents`);
+    }
+    const removed = uninstall(agent, { cwd: process.cwd(), global: !!o.global });
+    console.log(removed ? `removed ${removed}` : 'nothing installed');
+  });
+
 try {
   program.parse();
 } catch (e: any) {
   if (e instanceof ConfigFormatError) { console.error(`error: ${e.message}`); process.exit(1); }
   if (e instanceof QueryResolveError) { console.error(e.message); process.exit(1); }
+  if (e instanceof InstallError) { console.error(`error: ${e.message}`); process.exit(1); }
   if (e instanceof DbmlParseError) {
     const loc = [e.file, e.line != null ? `line ${e.line}` : null].filter(Boolean).join(', ');
     const hint = e.markdownNoFence ? ' — input looks like markdown without a ```dbml fence?' : '';

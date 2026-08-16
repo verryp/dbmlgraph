@@ -47,6 +47,8 @@ its whole point is the business-context layer a live connection can't provide.
 | Output split by grain (index / domain / table) | Yes | Per-table pages | No |
 | Lint for documentation gaps | Yes (`W001`–`W003`) | Yes (column comments) | No |
 | ER diagrams | Per-domain (Mermaid) | Yes (many formats) | No |
+| Identifier search across the whole schema | Yes (`find`) | No | No |
+| One-command agent wiring (Claude Code, AGENTS.md) | Yes (`install`) | No | No |
 | Primary job | Feed schema *meaning* to AI agents | Document a live DB in CI | Convert DBML ↔ SQL |
 
 Use `tbls` when you have a running database and want rich human documentation
@@ -270,23 +272,29 @@ built for pasting into an agent, so it never has to guess which files to open:
 dbmlgraph query order_items orders -i schema.dbml --overlays overlays/
 ```
 
-Full nodes for the queried tables, then one-line summaries of their neighbors,
-then merged rules — deduped across the whole pack. A queried table never shows up
-as its own neighbor, a neighbor shared by two queried tables prints once, and
-repeated FKs between the same pair collapse with a `(2 refs collapsed)` note.
-The footer names the tables just outside the pack and the command that fetches them.
+Full nodes for the queried tables, then a one-line hook per neighbor plus its
+`keys:` line (PK flag, FK target table(s), enum type — enough to join through
+the neighbor without opening its file), then merged rules — deduped across the
+whole pack. A queried table never shows up as its own neighbor, a neighbor
+shared by two queried tables prints once, and repeated FKs between the same
+pair collapse with a `(2 refs collapsed)` note. The footer names the tables
+just outside the pack and the command that fetches them.
 
 | flag | default | meaning |
 |---|---|---|
 | `--depth <n>` | `1` | neighbor hops, capped at 2. `0` drops the Neighbors section |
-| `--budget <tokens>` | adaptive | by default the cap is sized to fit the queried nodes and every depth-1 neighbor in full (min `4000`), so a hub table is never degraded on a plain invocation; pass a number for a hard cap. Neighbors are ranked (distance, then FK degree, then name) and cut from the tail; queried nodes are never cut |
+| `--budget <tokens>` | adaptive | by default the cap is sized to fit the queried nodes and every depth-1 neighbor's hook line + `keys:` line in full (min `4000`), so a hub table's direct partners are never degraded on a plain invocation; pass a number for a hard cap. Under pressure, neighbors degrade before they drop: depth-2+ entries lose their `keys:` line first (a direct depth-1 FK partner never does under the adaptive default), and only once nothing more can be trimmed does the tail get cut, ranked by distance then FK degree then name — queried nodes are never cut or degraded |
 | `--columns key\|all` | `key` | `all` gives each neighbor a compact PK/FK/enum column table |
-| `--format md\|json` | `md` | `json` mirrors the same sections as keys |
+| `--format md\|json` | `md` | `json` mirrors the same sections as keys, plus `resolvedBudget` (the adaptive value actually used) |
 | `--strict` | off | exact names only. Without it, a close name (case, or edit distance ≤2) is accepted when unambiguous |
 
 Truncation is never silent — a cut list always ends in a counted
-`… and N more (raise --budget or --depth)` label. An unresolvable name exits `1`
-after printing the three closest table names.
+`… and N more (raise --budget or --depth)` label, and a run of key-column
+degradation ends in `(N neighbors shown without columns — raise --budget)`.
+If even that isn't enough room for every direct relationship, the pack ships
+oversize rather than dropping one, with `(budget exceeded to preserve direct
+relationships)` noting why. An unresolvable name exits `1` after printing the
+three closest table names.
 
 Does the pack actually work? We benchmarked it blind against a 70-table
 production schema: fresh agent sessions wrote SQL from either a pack (4–8k
@@ -294,6 +302,58 @@ tokens) or the full raw DBML (~27k tokens). The pack matched or beat raw-dump
 accuracy at 3.5–6x less context, and on the hardest rule-dependent task the
 pack arm produced the only fully-correct answer. Method, results, and the two
 design changes the benchmark forced: [docs/benchmark.md](docs/benchmark.md).
+
+## Find an identifier
+
+`find` locates, `query` explains. Reach for `find` first when an agent doesn't yet know
+the exact table/column/enum name it needs — it's a wide, cheap lookup across every node
+kind (tables, columns, enums, enum values including overlay `values:` sets, domains), not
+a deep dump of one table's context.
+
+```bash
+dbmlgraph find cycle_id           # every column named cycle_id, across every table
+dbmlgraph find KICKOFF            # an enum or enum-value hit — DBML enum or overlay values: set
+dbmlgraph find planning_cycle     # a table hit (plus anything else matching the name)
+dbmlgraph find "ratio_*"          # glob — quote it so the shell doesn't expand *
+```
+
+Matching runs in precedence order and stops at the first level that finds something:
+exact name (case-insensitive counts as exact) → glob (a term containing `*`) → fuzzy
+(edit distance ≤ 2), unless `--strict` is set. Multiple terms in one invocation are
+matched independently and their results concatenated.
+
+| flag | default | meaning |
+|---|---|---|
+| `--format md\|json` | `md` | `json` mirrors the same hit groups as keys |
+| `--strict` | off | exact + glob only — skip the fuzzy fallback |
+
+## Install AI-agent integration
+
+`install` wires an agent up to `find`/`query` so it reaches for the schema graph
+instead of grepping markdown or DDL by hand.
+
+```bash
+dbmlgraph install claude [--global]     # writes .claude/skills/dbmlgraph/SKILL.md
+dbmlgraph install agents                # writes/updates a marker-delimited AGENTS.md section
+dbmlgraph install --list                # show install status for all targets
+dbmlgraph uninstall claude|agents [--global]
+```
+
+`install claude` writes a Claude Code skill file — local by default (`./.claude/skills/`),
+or `~/.claude/skills/` with `--global`. `install agents` writes a
+`<!-- dbmlgraph:start -->` … `<!-- dbmlgraph:end -->` section into `AGENTS.md` at the
+project root, covering Codex, opencode, and any other agent that reads the AGENTS.md
+standard. Both installs bake in the resolved schema directory so the agent never has to
+guess `-i`/`--overlays` — one absolute `cd` in the generated instructions.
+
+Schema directory resolution: `--schema-dir <path>` if given, otherwise walk up from the
+current directory looking for a `.dbmlgraph.yml`; no match in either case is an error.
+
+`install agents` is idempotent — re-running it replaces only the content between the
+markers, so re-install after a schema move never duplicates the section or disturbs
+anything else in `AGENTS.md`. `uninstall claude` removes the skill directory;
+`uninstall agents` removes the marked section (and the whole file if nothing else is
+in it).
 
 ## Roadmap
 

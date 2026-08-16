@@ -1,0 +1,9 @@
+purpose: Order header row
+columns:
+  cycle_id:
+    meaning: Owning planning cycle
+  status:
+    values:
+      DRAFT: not yet submitted
+      ACTIVE: input window open
+      CLOSED: force-closed
