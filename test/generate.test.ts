@@ -33,7 +33,7 @@ describe('generate', () => {
     const agentsPath = join(out, 'AGENTS.md');
     expect(existsSync(agentsPath)).toBe(true);
     const md = readFileSync(agentsPath, 'utf8');
-    expect(md).toContain('4 tables · 3 domains');
+    expect(md).toContain('5 tables · 3 domains');
     expect(md).toContain('identity');
     expect(md).toContain('Commerce');
   });

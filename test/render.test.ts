@@ -21,6 +21,11 @@ describe('render', () => {
   it('table node — obsidian links', () => {
     expect(renderTable(ir.tables.find(t => t.name === 'orders')!, ir, 'obsidian')).toMatchSnapshot();
   });
+  it('renders index-level composite pk and flattens multiline notes in cells', () => {
+    const md = renderTable(ir.tables.find(t => t.name === 'order_items')!, ir, 'md');
+    expect(md).toContain('- primary key on (order_id, line_no)');
+    expect(md).toContain('| line_no | int | null | line number |');
+  });
   it('table node — md links resolve relative from tables/', () => {
     const md = renderTable(ir.tables.find(t => t.name === 'orders')!, ir, 'md');
     expect(md).toContain('[users](users.md)');

@@ -143,6 +143,7 @@ export function parseDbml(source: string): IR {
     indexes: t.indexes.map((i: any): IndexDef => ({
       name: i.name ?? null,
       columns: i.columns.map((c: any) => String(c.value)),
+      pk: !!i.pk,
       unique: !!i.unique,
       note: i.note ?? null,
     })),

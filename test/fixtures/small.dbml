@@ -39,3 +39,12 @@ Table audit_log {
   id bigint [pk]
   payload text
 }
+
+Table order_items {
+  order_id bigint [not null, ref: > orders.id]
+  line_no int [note: '''line
+number''']
+  Indexes {
+    (order_id, line_no) [pk]
+  }
+}
