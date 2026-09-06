@@ -52,7 +52,12 @@ describe('parseDbml', () => {
 
   it('extracts composite indexes', () => {
     const orders = ir.tables.find(t => t.name === 'orders')!;
-    expect(orders.indexes[0]).toMatchObject({ name: 'idx_user_status', columns: ['user_id', 'status'] });
+    expect(orders.indexes[0]).toMatchObject({ name: 'idx_user_status', columns: ['user_id', 'status'], pk: false });
+  });
+
+  it('extracts index-level composite pk', () => {
+    const items = ir.tables.find(t => t.name === 'order_items')!;
+    expect(items.indexes[0]).toMatchObject({ name: null, columns: ['order_id', 'line_no'], pk: true });
   });
 
   it('throws DbmlParseError with line info on bad input', () => {

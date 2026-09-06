@@ -43,7 +43,7 @@ export function renderTableBody(t: TableNode, ir: IR, style: LinkStyle, opts: { 
     const cons = columnConstraints(c);
     const meaning = [c.meaning ?? c.note, c.generated && `Generated: ${c.generated}`, c.formula && `Formula: \`${c.formula}\``]
       .filter(Boolean).join(' · ');
-    const esc = (s: string) => s.replace(/\|/g, '\\|');
+    const esc = (s: string) => s.replace(/\n+/g, ' ').replace(/\|/g, '\\|').trim();
     L.push(`| ${c.name} | ${esc(c.type)} | ${esc(cons)} | ${esc(meaning)} |`);
   }
   L.push('');
@@ -80,7 +80,7 @@ export function renderTableBody(t: TableNode, ir: IR, style: LinkStyle, opts: { 
   if (t.indexes.length) {
     L.push('## Indexes');
     for (const i of t.indexes)
-      L.push(`- ${i.name ?? '(unnamed)'} on (${i.columns.join(', ')})${i.unique ? ' unique' : ''}${i.note ? ` — ${i.note}` : ''}`);
+      L.push(`- ${i.name ?? (i.pk ? 'primary key' : '(unnamed)')} on (${i.columns.join(', ')})${i.pk && i.name ? ' pk' : ''}${i.unique ? ' unique' : ''}${i.note ? ` — ${i.note}` : ''}`);
     L.push('');
   }
 

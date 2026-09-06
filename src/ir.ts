@@ -55,6 +55,7 @@ export interface Ref {
 export interface IndexDef {
   name: string | null;
   columns: string[];
+  pk: boolean;                // composite primary key declared at index level: `(a, b) [pk]`
   unique: boolean;
   note: string | null;
 }

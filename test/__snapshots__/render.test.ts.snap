@@ -8,13 +8,16 @@ domain: commerce
 
 ## Tables
 - [audit_log](../tables/audit_log.md)
+- [order_items](../tables/order_items.md)
 - [orders](../tables/orders.md) — Order header. One row per checkout.
 
 ## ER (local)
 \`\`\`mermaid
 erDiagram
   audit_log
+  order_items
   orders
+  order_items }o--|| orders : "order_id"
 \`\`\`
 
 ## Cross-domain refs
@@ -25,7 +28,7 @@ erDiagram
 exports[`render > index lists every table once under its domain 1`] = `
 "# Schema Index
 
-4 tables · 3 domains. One line per table; open the table node for full detail.
+5 tables · 3 domains. One line per table; open the table node for full detail.
 
 ## identity ([[identity]])
 - [[users]] — Account registry.
@@ -35,6 +38,7 @@ exports[`render > index lists every table once under its domain 1`] = `
 
 ## Commerce ([[commerce]])
 - [[audit_log]]
+- [[order_items]]
 - [[orders]] — Order header. One row per checkout.
 "
 `;
@@ -44,7 +48,7 @@ exports[`render > table node — obsidian links 1`] = `
 table: orders
 domain: commerce
 refs_out: [users]
-refs_in: []
+refs_in: [order_items]
 ---
 # orders
 > Order header. One row per checkout.
@@ -67,6 +71,7 @@ refs_in: []
 
 ## Relationships
 - → [[users]] via user_id (many-to-one)
+- ← [[order_items]] via order_id (many-to-one)
 
 ## Indexes
 - idx_user_status on (user_id, status)
