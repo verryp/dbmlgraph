@@ -146,6 +146,16 @@ drill into `domains/` then `tables/`, prefer `dbmlgraph query` over opening file
 by hand). It's regenerated on every run, so don't hand-edit it; edits are
 overwritten on the next `generate`.
 
+### Pruning stale files
+
+`domains/` and `tables/` are tool-owned: `generate` removes any `.md` in them
+that the current run did not write. Rename a `TableGroup` or drop a table and
+the old page goes away, instead of lingering as a domain the schema no longer
+has. Pass `--no-prune` to keep them.
+
+Pruning never touches the output root — `export.jsonl` lives there and is
+written by a separate `export` run — and never touches non-markdown files.
+
 ## Overlay format
 
 One YAML file per table, filename (minus extension) = table name. Every field is optional —
