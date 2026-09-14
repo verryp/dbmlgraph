@@ -6,6 +6,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-09-14
+
+### Fixed
+- `generate` now prunes stale files from `domains/` and `tables/` — any `.md`
+  the run did not write is removed, so a renamed `TableGroup` or a dropped
+  table no longer leaves a page behind advertising a domain the schema no
+  longer has. Found in a 75-table graph whose `_index.md` read `17 domains`
+  beside 18 files, with nothing in the output signalling the mismatch.
+
+### Added
+- `generate --no-prune` keeps files the run did not write. Pruning is on by
+  default, is confined to `domains/` and `tables/` and to `.md` files, and
+  never touches the output root (`export.jsonl` lives there and is written by
+  a separate `export` run) or non-markdown files.
+- `generate()` returns `pruned: string[]` alongside `written` and `issues`;
+  the CLI reports each pruned path and a count.
+
+## [0.6.1] - 2026-09-07
+
+### Fixed
+- Index-level composite primary keys (`indexes { (a, b) [pk] }`) now render —
+  `parse.ts` dropped the `pk` flag, so such a table read as having no PK.
+- Multiline DBML notes no longer break markdown table rows; column cells
+  flatten embedded newlines.
+
 ## [0.6.0] - 2026-08-16
 
 ### Added
@@ -80,6 +105,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `meaning` / `generated` / `formula` / `enum` semantics.
 - Domain resolution from DBML `TableGroup` or `// DOMAIN N:` banner comments.
 
-[Unreleased]: https://github.com/verryp/dbmlgraph/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/verryp/dbmlgraph/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/verryp/dbmlgraph/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/verryp/dbmlgraph/compare/v0.6.0...v0.6.1
 [0.1.1]: https://github.com/verryp/dbmlgraph/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/verryp/dbmlgraph/releases/tag/v0.1.0

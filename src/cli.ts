@@ -28,6 +28,7 @@ program.command('generate')
   .option('--overlays <dir>', 'overlay YAML directory')
   .option('-o, --out <dir>', 'output directory')
   .addOption(new Option('--link-style <style>', 'obsidian | md').choices(['obsidian', 'md']))
+  .option('--no-prune', 'keep generated files that this run did not write')
   .option('-c, --config <file>', 'config file (default .dbmlgraph.yml)')
   .action((o) => {
     const cfg = loadConfig(o.config);
@@ -35,9 +36,10 @@ program.command('generate')
     const out = require_(pick(o.out, cfg.out), 'out');
     const overlaysDir = pick(o.overlays, cfg.overlays);
     const linkStyle = pick(o.linkStyle, cfg.linkStyle, 'md');
-    const { written, issues } = generate({ input, overlaysDir, outDir: out, linkStyle });
+    const { written, issues, pruned } = generate({ input, overlaysDir, outDir: out, linkStyle, prune: o.prune });
     for (const i of issues) console.error(`[${i.code}] ${i.table}: ${i.detail}`);
-    console.log(`wrote ${written.length} files to ${out}`);
+    for (const f of pruned) console.log(`pruned stale ${f}`);
+    console.log(`wrote ${written.length} files to ${out}${pruned.length ? `, pruned ${pruned.length} stale` : ''}`);
     if (issues.length) process.exit(1);
   });
 
