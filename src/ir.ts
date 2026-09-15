@@ -4,6 +4,16 @@ export interface IR {
   tables: TableNode[];
   enums: EnumDef[];
   refs: Ref[];
+  banners: BannerDef[];       // `// DOMAIN N:` comments, for staleness linting
+}
+
+// A `// DOMAIN N: Name` banner comment. Banners are the fallback domain source for
+// tables outside every TableGroup, so a stale one mislabels the next ungrouped table.
+export interface BannerDef {
+  line: number;               // 1-based line in the parsed DBML source
+  name: string;
+  active: boolean;            // ≥1 table resolved its domain from this banner
+  matchesGroup: boolean;      // slugify(name) matches a TableGroup-derived domain slug
 }
 
 export interface Domain { slug: string; name: string; tables: string[] }

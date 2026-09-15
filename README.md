@@ -250,10 +250,18 @@ fail the build — they flag missing context, not broken overlays.
 | W001 | warning | Table has no overlay `purpose` |
 | W002 | warning | Column has neither a DBML `note` nor an overlay `meaning` |
 | W003 | warning | Enum value has neither a DBML `note` nor an overlay meaning |
+| W004 | warning | A `// DOMAIN N:` banner comment matches no TableGroup and names no table's domain — likely stale after a TableGroup rename |
 
 `--exclude-columns` exempts a comma-separated column list (e.g. `id,created_at,updated_at`,
 the built-in default) from W002 — housekeeping columns that rarely need a business
 explanation.
+
+W004 exists because banners are not decoration: a table outside every TableGroup takes
+its domain name from the nearest banner above it. A banner left behind by a TableGroup
+rename is dormant until someone adds an ungrouped table under it — then the new table
+silently lands in a domain the schema no longer has. Aligning (or deleting) the banner
+clears the warning; a banner that matches its TableGroup, or that actively names an
+ungrouped table's domain, never fires.
 
 ## Link styles
 

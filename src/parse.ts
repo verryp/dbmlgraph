@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { Parser } from '@dbml/core';
-import type { IR, Domain, TableNode, Column, EnumDef, Ref, IndexDef } from './ir.js';
+import type { IR, Domain, TableNode, Column, EnumDef, Ref, IndexDef, BannerDef } from './ir.js';
 
 export class DbmlParseError extends Error {
   /** 1-based source line, when @dbml/core reports one. */
@@ -109,11 +109,13 @@ export function parseDbml(source: string): IR {
   const groupOf = new Map<string, string>(); // tableName → domain name
   for (const g of s.tableGroups) for (const t of g.tables) groupOf.set(t.name, g.name);
   const banners = scanBanners(source);
+  const usedBanners = new Set<number>(); // banner line numbers that named a table's domain
   const domainNameOf = (t: any): string => {
     if (groupOf.has(t.name)) return groupOf.get(t.name)!;
     const tableLine = t.token?.start?.line ?? 0;
     const before = banners.filter(b => b.line < tableLine).at(-1);
-    return before?.name ?? 'ungrouped';
+    if (before) { usedBanners.add(before.line); return before.name; }
+    return 'ungrouped';
   };
 
   const domainNames = new Map<string, string>(); // slug → raw domain name, first occurrence wins
@@ -177,5 +179,12 @@ export function parseDbml(source: string): IR {
     };
   });
 
-  return { databaseName: s.name === 'public' ? null : s.name ?? null, domains, tables, enums, refs };
+  const groupSlugs = new Set([...groupOf.values()].map(slugify));
+  const bannersOut: BannerDef[] = banners.map(b => ({
+    line: b.line, name: b.name,
+    active: usedBanners.has(b.line),
+    matchesGroup: groupSlugs.has(slugify(b.name)),
+  }));
+
+  return { databaseName: s.name === 'public' ? null : s.name ?? null, domains, tables, enums, refs, banners: bannersOut };
 }

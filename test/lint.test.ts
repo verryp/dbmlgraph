@@ -35,4 +35,46 @@ describe('lint', () => {
     // orders.total has no note/meaning but has overlay `formula` → must not get W002
     expect(res.warnings).not.toContainEqual(expect.objectContaining({ code: 'W002', table: 'orders', detail: expect.stringContaining('total') }));
   });
+
+  it('W004 flags a stale domain banner that matches no TableGroup and names no table domain', () => {
+    const stale = `
+TableGroup "Billing" {
+  invoices
+}
+
+// DOMAIN 1: Legacy Reporting
+
+Table invoices {
+  id bigint [pk]
+}
+`;
+    const res = lint(parseDbml(stale), []);
+    expect(res.warnings).toContainEqual(expect.objectContaining({
+      code: 'W004',
+      table: 'Legacy Reporting',
+      detail: expect.stringContaining('line 6'),
+    }));
+  });
+
+  it('W004 stays silent when the banner matches a TableGroup by slug', () => {
+    const aligned = `
+TableGroup "Billing" {
+  invoices
+}
+
+// DOMAIN 1: Billing
+
+Table invoices {
+  id bigint [pk]
+}
+`;
+    const res = lint(parseDbml(aligned), []);
+    expect(res.warnings.filter(w => w.code === 'W004')).toEqual([]);
+  });
+
+  it('W004 stays silent when the banner actively names an ungrouped table domain', () => {
+    // small.dbml: the Commerce banner is the live domain source for orders/audit_log/order_items
+    const res = lint(parseDbml(src), []);
+    expect(res.warnings.filter(w => w.code === 'W004')).toEqual([]);
+  });
 });
