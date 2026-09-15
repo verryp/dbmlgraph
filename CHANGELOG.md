@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-09-15
+
 ### Added
 - `lint` W004: warns on a `// DOMAIN N:` banner comment that matches no
   TableGroup and names no table's domain. Banners are the fallback domain
@@ -112,7 +114,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `meaning` / `generated` / `formula` / `enum` semantics.
 - Domain resolution from DBML `TableGroup` or `// DOMAIN N:` banner comments.
 
-[Unreleased]: https://github.com/verryp/dbmlgraph/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/verryp/dbmlgraph/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/verryp/dbmlgraph/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/verryp/dbmlgraph/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/verryp/dbmlgraph/compare/v0.6.0...v0.6.1
 [0.1.1]: https://github.com/verryp/dbmlgraph/compare/v0.1.0...v0.1.1
