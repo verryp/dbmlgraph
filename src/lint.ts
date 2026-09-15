@@ -23,5 +23,8 @@ export function lint(ir: IR, overlayIssues: OverlayIssue[], opts: { excludeColum
       if (!v.note && !v.meaning) warnings.push({ code: 'W003', table: e.name, detail: `enum value '${v.name}' has no meaning` });
     }
   }
+  for (const b of ir.banners) {
+    if (!b.matchesGroup && !b.active) warnings.push({ code: 'W004', table: b.name, detail: `'// DOMAIN' banner at line ${b.line} matches no TableGroup and names no table's domain — stale after a TableGroup rename?` });
+  }
   return { errors, warnings };
 }

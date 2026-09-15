@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `lint` W004: warns on a `// DOMAIN N:` banner comment that matches no
+  TableGroup and names no table's domain. Banners are the fallback domain
+  source for ungrouped tables, so one left behind by a TableGroup rename
+  mislabels the next table added outside a group. Found in a 75-table schema
+  carrying 7 stale banners against 17 TableGroups.
+
 ## [0.6.2] - 2026-09-14
 
 ### Fixed

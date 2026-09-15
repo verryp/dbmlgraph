@@ -62,6 +62,7 @@ describe('render', () => {
         { fromTable: 'a', fromColumns: ['b_uid'], toTable: 'b', toColumns: ['uid'], kind: 'one-to-one' },
         { fromTable: 'a', fromColumns: ['tag'], toTable: 'b', toColumns: ['tag'], kind: 'many-to-many' },
       ],
+      banners: [],
     };
     const md = renderDomain(miniIr.domains[0], miniIr, 'md');
     expect(md).toContain('a }o--|| b : "b_id"');
